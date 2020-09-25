@@ -112,7 +112,7 @@ def final_return(wildcards):
                      "ShortStack_gff" : expand(f"{out_dir}4_ShortStack/ShortStack_All.gff3"),
                      "ShortStack_gff2" : expand(f"{out_dir}4_ShortStack/ShortStack_All_miRNA.gff3"),
                      "ShortStack_html" : expand(f"{out_dir}4_ShortStack/shortStack_analysis.html"),
-                     "sRNA_diff_exp_html : f"{out_dir}5_sRNA_loci_DE_analysis/sRNA_DE_analysis.html"
+                     "sRNA_diff_exp_html" : f"{out_dir}5_sRNA_loci_DE_analysis/sRNA_DE_analysis.html"
                      }
     return dico_final
 
