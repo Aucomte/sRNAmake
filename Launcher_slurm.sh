@@ -6,15 +6,16 @@
 #SBATCH --cpus-per-task 1
 #module purge
 
-# cding into the path of the relvent pipeline instance
-#cd /data/projects/rymv_xantho_smallrna/seb/pipeline_srnas
-
 # Snakefile path
 snkf="sRNA_pipeline.smk"
 
+
 # run config file
-#cfgf="config/config_BAI3.yaml"
+if [ -z "$1" ]; then
 cfgf="config/config.yaml"
+else
+cfgf="$1"
+fi
 
 # starting environments for the pipeline
 module load system/Miniconda3/1.0
