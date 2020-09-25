@@ -112,6 +112,7 @@ def final_return(wildcards):
                      "ShortStack_gff" : expand(f"{out_dir}4_ShortStack/ShortStack_All.gff3"),
                      "ShortStack_gff2" : expand(f"{out_dir}4_ShortStack/ShortStack_All_miRNA.gff3"),
                      "ShortStack_html" : expand(f"{out_dir}4_ShortStack/shortStack_analysis.html"),
+                     "sRNA_diff_exp_html : f"{out_dir}5_sRNA_loci_DE_analysis/sRNA_DE_analysis.html"
                      }
     return dico_final
 
@@ -611,6 +612,45 @@ rule shortStack_analysis:
         config["SINGULARITY"]["MAIN"]
     script:
         "script/shortStack_analysis.Rmd"
+
+rule diff_exp_analysis:
+    """Experimental sRNA Clusters Differential Expression Analysis"""
+    threads: get_threads('diff_exp_analysis', 4)
+    input:
+        bam_files_info_file = rules.generate_bamfile_info.output.out_file,
+        new_gff3 = rules.shortStack_populateGFF.output.new_gff3,
+        genome_sequence_file = rules.cat_fasta.output.cat_ref,
+        genome_annotation_file = rules.cat_gtf.output.cat_gtf,
+        sRNA_loci_annot_file = rules.shortStack_populateGFF.output.new_gff3
+    params:
+        outDir = lambda w, output: os.path.dirname(output.html_output),
+        de_comparisons_file = config["files"]["de_comparisons_file"],
+        filter_gff = config["files"]["filter_gff"],
+        minRowSumTreshold = config["PARAMS"]["DE_ANALYSIS"]["minRowSumTreshold"],
+        variableOfInterest = config["PARAMS"]["DE_ANALYSIS"]["variableOfInterest"],
+        batch = config["PARAMS"]["DE_ANALYSIS"]["batch"],
+        locfunc = config["PARAMS"]["DE_ANALYSIS"]["locfunc"],
+        fitType = config["PARAMS"]["DE_ANALYSIS"]["fitType"],
+        sizeFactEstimMethod = config["PARAMS"]["DE_ANALYSIS"]["sizeFactEstimMethod"],
+        pAdjustMethod = config["PARAMS"]["DE_ANALYSIS"]["pAdjustMethod"],
+        cooksCutoff = config["PARAMS"]["DE_ANALYSIS"]["cooksCutoff"],
+        independentFiltering = config["PARAMS"]["DE_ANALYSIS"]["independentFiltering"],
+        lfcThreshold = config["PARAMS"]["DE_ANALYSIS"]["lfcThreshold"],
+        altHypothesis = config["PARAMS"]["DE_ANALYSIS"]["altHypothesis"],
+        alpha = config["PARAMS"]["DE_ANALYSIS"]["alpha"],
+        typeTrans = config["PARAMS"]["DE_ANALYSIS"]["typeTrans"]
+    output:
+        html_output = f"{out_dir}5_sRNA_loci_DE_analysis/sRNA_DE_analysis.html"
+    log:
+        error = f"{log_dir}diff_exp_analysis.e",
+        output = f"{log_dir}diff_exp_analysis.o"
+    singularity:
+        config["SINGULARITY"]["MAIN"]
+    script:
+        "script/sRNA_DE_analysis.Rmd"
+
+
+
 
 # TODO :
         # virer le slash à la fin des nom de dossiers

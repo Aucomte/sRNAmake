@@ -5,8 +5,7 @@
 # Input output data options
 'DATA':
     'directories':
-        # ARE THE '/' COMPULSORY IN FOLDER PATHS?
-        'fastq_dir': "/data/projects/rymv_xantho_smallrna/seb/bai3_dataset_input/fastq"       # samples dir with fastq
+        'fastq_dir': "/data/projects/rymv_xantho_smallrna/seb/bai3_dataset_input/fastq"   # STILL NECESSARY?    # samples dir with fastq
         'references_dir': "/data/projects/rymv_xantho_smallrna/seb/bai3_dataset_input/ref"       # references dir
         'out_dir': "/data/projects/rymv_xantho_smallrna/seb/bai3_dataset_output/"       # Out directory
         'annotation': "/data/projects/rymv_xantho_smallrna/seb/bai3_dataset_input/annot"
@@ -14,11 +13,15 @@
     'files':
         'miRNA_gff' : '/data3/projects/pixies/reference_genomic_data/NB_genome/miRBase_MSU7_MIR.gff3'
         'sample_info': "/data/projects/rymv_xantho_smallrna/seb/bai3_dataset_input/samplesInfo_BAI3_trimmed.txt"
+        'de_comparisons_file' : "/data3/projects/pixies/scripts/treatmentsComparisons_2012.csv"
+        'filter_gff' : "/data3/projects/pixies/reference_genomic_data/NB_genome/Oryza_sativa_genomic_refseq_IRGSP_seqlevels.gff3"
 #NASID: "NAS2"
 
 ################################
 # Params for tools:
 PARAMS:
+    FASTP:
+        options: "" # Carefull ! Quality trimming and adaptater removal is enabled by default.
     SHORTSTACK:
         dicermin: 20
         dicermax: 24
@@ -26,24 +29,24 @@ PARAMS:
         pad: 75
         foldsize: 300
         strand_cutoff: 0.8
+    DE_ANALYSIS:
+        # feature filtering based on total read counts
+        minRowSumTreshold: 30
+        # DESeq2 modeling with GLM
+        variableOfInterest: "Treatment"
+        batch: "Experiment"
+        locfunc: "shorth" # "median"
+        fitType: "parametric"
+        sizeFactEstimMethod: "iterate" # "ratio" # "poscounts"
+        pAdjustMethod: "BH"
+        cooksCutoff: "TRUE"
+        independentFiltering: "FALSE"
+        lfcThreshold: 2
+        altHypothesis: "greaterAbs"
+        alpha: 0.05
+        # DESeq2 VSR transformation method
+        typeTrans: "rlog"
 
-##############################
-# Location of various software
-#
-# the variable must load soft on the $PATH environement
-#MODULES:
-#    "SAMTOOLS": "module load bioinfo/samtools/1.10"         # use for filter reads and convert sam to bam
-#    "PYTHON3": "module load system/python/3.7.2"           # Python3 >=3.6 with require libraries
-#    "BWA": "module load bioinfo/bwa/0.7.17"                # for make the mapping
-#    "SHORTSTACK": "module load bioinfo/ShortStack/3.8.4"
-#    "PERL" : "module load system/perl/5.16.3"
-
-#MODULES:
-#    "SAMTOOLS": " "         # use for filter reads and convert sam to bam
-#    "PYTHON3": " "           # Python3 >=3.6 with require libraries
-#    "BWA": " "                # for make the mapping
-#    "SHORTSTACK": "export PATH='/home/comte/Documents/DIVERS/TOOLS/ShortStack/:$PATH'"
-#    "PERL" : ""
 
 SINGULARITY:
     "MAIN" : "/data/projects/rymv_xantho_smallrna/pipeline_srnas/Containers/Singularity.R.simg"

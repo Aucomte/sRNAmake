@@ -14,7 +14,7 @@ myLoadInstall <- function(packageNames) {
     cat("\n### The following packages are not available on", .libPaths(),
         "and will be installed using BiocManager::install() prior to loading:\n -", paste0(toBeInstalled, collapse = "\n- "),
         "\n")
-    BiocManager::install(toBeInstalled, update = TRUE, ask = TRUE)
+    BiocManager::install(toBeInstalled, update = FALSE, ask = FALSE)
   } else {
     cat("\n### All required packages are available on your system and will be loaded\n")
   }

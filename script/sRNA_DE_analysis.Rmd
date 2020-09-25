@@ -1,0 +1,1480 @@
+---
+title: "sRNA_Analysis_Report"
+author: "Seb"
+date: "`r Sys.time()`"
+output:
+  html_document:
+    theme: cerulean
+    highlight: tango
+    toc: true
+    toc_float:
+      collapsed: true
+      smooth_scroll: true
+    number_sections: true
+    code_folding: hide
+editor_options: 
+  chunk_output_type: console
+---
+
+
+
+
+
+```{bash eval = FALSE, include=FALSE}
+## git operations on iTrop
+cd /data/projects/rymv_xantho_smallrna/seb/pipeline_srnas
+eval $(ssh-agent -s)
+ssh-add /home/cunnac/.ssh/gitLabIRD_rsa
+git pull origin
+git push
+
+```
+
+```{r knitrGlobalOpt}
+knitr::opts_chunk$set(dev='CairoPNG')
+```
+
+
+```{r getting parameters from snakemake object}
+## #############   INITIAL TESTING  ################
+#sampleInfoBamFiles <- "/data/projects/rymv_xantho_smallrna/seb/bai3_dataset_output/2_mapping_sRNA/bamfile_info.txt" # snakemake@input[["bam_files_info_file"]]
+#genomeGffFile <- "/data/projects/rymv_xantho_smallrna/seb/bai3_dataset_input/annot/MSU7.gff3" # snakemake@input[["genome_annotation_file"]]
+#genomeFastaFile <- "/data/projects/rymv_xantho_smallrna/seb/bai3_dataset_output/1_cat_ref/all_ref.fa" # snakemake@input[["genome_sequence_file"]]
+#sstackGffFile <- "/data/projects/rymv_xantho_smallrna/seb/bai3_dataset_output/4_ShortStack_bamMerged/ShortStack_All_miRNA.gff3" # snakemake@input[["sRNA_loci_annot_file"]]
+#ncores <- 6 # snakemake@threads
+#outDir <- "/data/projects/rymv_xantho_smallrna/seb/bai3_dataset_output/5_sRNA_loci_DE_analysis" # snakemake@params[["out_dir"]]
+#invisible(dir.exists(outDir) || dir.create(path = outDir, mode = "770"))
+#comparisonsFile <- "/data3/projects/pixies/scripts/treatmentsComparisons_2012.csv" # snakemake@params[["de_comparisons_file"]]
+#filterGffFile <- "/data3/projects/pixies/reference_genomic_data/NB_genome/Oryza_sativa_genomic_refseq_IRGSP_seqlevels.gff3" # snakemake@params[["filter_gff"]]
+## feature filtering based on total read counts
+#minRowSumTreshold <- 30 # snakemake@params[["minRowSumTreshold"]]
+## DESeq2 fonctions parameters values
+#variableOfInterest <- "Treatment"
+#batch <- "Experiment"
+#locfunc <- "shorth" # "median" #
+#fitType <- "parametric"
+#sizeFactEstimMethod <- "iterate" # "ratio" # "poscounts"
+#pAdjustMethod <- "BH"
+#cooksCutoff <- TRUE #! as.logical
+#independentFiltering <- FALSE #! as.logical
+#lfcThreshold <- 2 #! as.numeric
+#altHypothesis <- "greaterAbs"
+#alpha <- 0.05 #! as.numeric
+## DESeq2 VSR transformation method
+#typeTrans <- "rlog"
+##################################################################################
+
+##################### LOADING PARAMS FROM SNAKEMAKE OBJECT ######################
+sampleInfoBamFiles <- snakemake@input[["bam_files_info_file"]]
+genomeGffFile <- snakemake@input[["genome_annotation_file"]]
+genomeFastaFile <- snakemake@input[["genome_sequence_file"]]
+sstackGffFile <- snakemake@input[["sRNA_loci_annot_file"]]
+ncores <- as.integer(snakemake@threads)
+outDir <- snakemake@params[["out_dir"]]
+invisible(dir.exists(outDir) || dir.create(path = outDir, mode = "770"))
+comparisonsFile <- snakemake@params[["de_comparisons_file"]]
+filterGffFile <- snakemake@params[["filter_gff"]]
+# feature filtering based on total read counts
+minRowSumTreshold <- as.numeric(snakemake@params[["minRowSumTreshold"]])
+# DESeq2 functions parameters values
+variableOfInterest <- snakemake@params[["variableOfInterest"]]
+batch <- snakemake@params[["batch"]]
+locfunc <- snakemake@params[["locfunc"]]
+fitType <- snakemake@params[["fitType"]]
+sizeFactEstimMethod <- snakemake@params[["sizeFactEstimMethod"]]
+pAdjustMethod <- snakemake@params[["pAdjustMethod"]]
+cooksCutoff <- as.logical(snakemake@params[["cooksCutoff"]])
+independentFiltering <- as.logical(snakemake@params[["independentFiltering"]])
+lfcThreshold <- as.numeric(snakemake@params[["lfcThreshold"]])
+altHypothesis <- snakemake@params[["altHypothesis"]]
+alpha <- as.numeric(snakemake@params[["alpha"]])
+# DESeq2 VSR transformation method
+typeTrans <- snakemake@params[["typeTrans"]]
+
+# A R script with function definitiions to be used in the analysis
+accessoryFuncFile <- file.path(normalizePath(path = "./script", mustWork = TRUE), "sRNA_analysis_lib.R")
+```
+
+
+
+# Instantiating input and configuration objects
+
+## Loading required packages and function definitions
+
+```{r loadPackages}
+necessaryPackages <- c(
+  "parallel",
+  "dplyr", "readr", "reshape2", "ggplot2", "fs",
+  "ggplot2", 
+  "ComplexHeatmap",
+  "RColorBrewer", "paletteer",
+  "DT",
+  "GenomicAlignments", "GenomicFeatures", "Rsamtools", "rtracklayer",
+  "ShortRead", "Rsubread",
+  "genefilter",
+  "systemPipeR",
+  "SARTools",
+  "UpSetR",
+  "mclust",
+  "Cairo"
+)
+
+
+#options(bitmapType='cairo')
+
+source(file = accessoryFuncFile)
+
+.Last <- function() {
+  cat("Now saving current session to output dir:", outDir, "\n")
+  save.image(file = file.path(outDir, "session.RData"), compress = TRUE)
+  cat("bye bye...\n")
+}
+
+if (!"SARTools" %in% installed.packages()[, "Package"]) {devtools::install_github("PF2-pasteur-fr/SARTools", build_opts="--no-resave-data",
+                                                                                  dependencies = TRUE, upgrade = FALSE)}
+myLoadInstall(necessaryPackages)
+
+```
+
+
+## Parallel computing
+
+
+```{r BiocParallelStart}
+#cl <- makeCluster(3, "SOCK") # create a local cluster with the specified number of cores
+#cl <- NULL
+parallelBackEnd <- MulticoreParam(workers = ncores)
+register(parallelBackEnd, default = TRUE)
+```
+
+
+## Read paths and experimental factors from sampleInfo file
+
+```{r loadSampleInfo}
+sampleInfoBam <- read.delim(sampleInfoBamFiles, as.is = 1, comment.char = "#")
+knitr::kable(sampleInfoBam)
+```
+
+
+## Reads and mapping files containers with associated experimental metadata
+
+```{r mappingContainers}
+# Create object containers for bam files
+bamFiles <- sampleInfoBam$FileName
+names(bamFiles) <- sampleInfoBam$SampleName
+bamList <- BamFileList(bamFiles, asMates = FALSE,  yieldSize=100000) # BEWARE OF YIELD!!!!
+
+# Include experimental setup in the object
+mcols(bamList) <- as(sampleInfoBam[, !colnames(sampleInfoBam) %in% "FileName"], "DataFrame")
+
+```
+
+
+
+## Important variables for analysis that may be elected as parameters
+
+```{r moreAnalysisParams}
+# Results filtering criteria
+maxAdjPval <- alpha 
+
+# More path locations
+plotsByClusterDir <- file.path(outDir, "PlotsByCluster")
+invisible(dir.exists(plotsByClusterDir) || dir.create(path = plotsByClusterDir, mode = "770"))
+
+
+######################################
+# Checking if experimental design contains replicated treatments
+replicated <- as.logical(anyDuplicated(sampleInfoBam[, variableOfInterest]))
+
+# Apply specific parameters for unreplicated datasets
+if (!replicated) {
+  batch <- NULL
+}
+```
+
+**`r if (!replicated) cat("No duplicate sample has been detected in the dataset! Analysis will proceed with specific parameters. Statistical inference on differential accumulation will be performed using the DESEq package and many of the QC steps will be omitted!\n")`)**
+
+
+## Default Parameter object defining what information is read from NGS files
+
+Constructing a ScanBamParam object
+```{r scanBamParamObject}
+# Constructor helpers
+which <- GRanges() # complete genome
+flag <- scanBamFlag(isPaired = NA, isProperPair = NA, isUnmappedQuery = FALSE, 
+		hasUnmappedMate = NA, isMinusStrand = NA, isMateMinusStrand = NA, 
+		isFirstMateRead = NA, isSecondMateRead = NA, isSecondaryAlignment = NA, 
+		isNotPassingQualityControls = NA, isDuplicate = NA) 
+tag <- character(0) # c("NM", "AS", "X0", "XT","XA") 
+what <- character(0) # c("rname", "strand", "pos", "qwidth") or scanBamWhat()
+
+# Constructor
+bamParam <- ScanBamParam(flag = flag, simpleCigar = FALSE,
+		reverseComplement = TRUE, tag = tag,
+		what = what, which = which)
+```
+
+
+## Treatment comparisons that will be tested in the analysis
+
+```{r treatmentcomparisons}
+comparisons <- read.csv2(comparisonsFile, stringsAsFactors = FALSE)
+knitr::kable(comparisons)
+```
+
+
+
+## Loading genomic annotations and sequences
+
+NOTE: seqinfo information for all objects is set to the same info provided in the `chrominfo` variable.
+
+### Reference genome annotation and sequence (most likely rice)
+```{r refGenomeAnnot}
+genomeAnnotGR <- rtracklayer::import(genomeGffFile)
+newsi <- GenomeInfoDb::merge(chrominfo, seqinfo(genomeAnnotGR))
+seqinfo(genomeAnnotGR, new2old = match(seqnames(newsi), seqlevels(genomeAnnotGR))) <- newsi
+refGenes <- genomeAnnotGR[genomeAnnotGR$type == "gene"]
+names(refGenes) <- refGenes$Name
+
+genomeAnnotDB <- makeTxDbFromGFF(genomeGffFile, format="gff3", chrominfo = chrominfo )
+simplifiedRefTx <- reduce(exonsBy(genomeAnnotDB, by = "gene"))
+
+refGenomeSeq <-FaFile(genomeFastaFile)
+```
+
+
+### Genome Segmentation for sRNA loci inferrence
+
+Finding regions that accumulate a number of reads in any of the libraries that is higher that what is expected by chance alone.
+
+**Loading sRNA clusters from ShortStack output**
+
+
+```{r shortStackClustersAnnot}
+  sRnaClusters <- rtracklayer::import.gff3(sstackGffFile)
+  newsi <- GenomeInfoDb::merge(chrominfo, seqinfo(sRnaClusters))
+  seqinfo(sRnaClusters, new2old = match(seqnames(newsi), seqlevels(sRnaClusters))) <- newsi
+  names(sRnaClusters) <- GRanges2GBrowser(sRnaClusters)
+  mcols(sRnaClusters)$id <- names(sRnaClusters)
+```
+
+### Previously annotated reference xisRNAs
+
+**May want to omit this step**
+
+```{r instanciateXisrnaGR}
+# Load xisRNA info table
+xisrna <- read.csv2(xisrnaBai3File, stringsAsFactors = FALSE)
+str(xisrna)
+# Create a GRanges containning all the info from the file.
+xisrnaGR <- GBrowser2GRanges(as.character(xisrna$locationMSU7))
+names(xisrnaGR) <- as.character(xisrna$xisRNAID)
+seqinfo(xisrnaGR) <- merge(seqinfo(xisrnaGR), chrominfo)
+mcols(xisrnaGR) <- xisrna[, c(-1, -2)]
+```
+
+### Recording overlap between candidate  sRNA loci (genome segments) and genomic features of interest
+
+Find overlap with annotated genes
+```{r}
+sRnaClusters <- addRefAnnot(querGR = sRnaClusters, refGR = refGenes, mcolsToKeep = c("Note"), prefix = "OlapGene_")
+```
+
+Find overlap with annotated 'simplified' trancripts 
+
+```{r}
+sRnaClusters <- addRefAnnot(querGR = sRnaClusters, refGR = simplifiedRefTx , prefix = "OlapSimpleTrx_")
+```
+
+
+
+**DELETE**  
+Find Diff accumul sRNA loci that overlap with xisRNA clusters
+
+```{r, eval = FALSE}
+sRnaClusters <- addRefAnnot(querGR = sRnaClusters, refGR = xisrnaGR, mcolsToKeep = c("Group", "Family", "Subfamily"), prefix = "OlapXisRNA_")
+```
+
+
+# QC mapping
+
+## Table of mapping efficiency
+
+May alternatively want to use `Rsamtools::quickBamFlagSummary()` although there is no way to plot things from its output.
+
+```{r mappingEffiency, eval= TRUE}
+propmapped <- bplapply(path(bamList), Rsubread::propmapped)
+propmapped <- do.call(rbind, propmapped)
+propmapped <- cbind(SampleIDs = names(path(bamList)), propmapped)
+knitr::kable(propmapped)
+
+mappedForPlot <- propmapped %>% mutate(NumUnmapped = NumTotal - NumMapped,
+                                       Samples = NULL, PropMapped = NULL, NumTotal = NULL)
+mappedForPlot <- melt(data=mappedForPlot, id.vars = "SampleIDs",
+                      variable.name = "Category", value.name = "Counts")
+mappedForPlot <- merge(mappedForPlot, sampleInfoBam, by.x = "SampleIDs", by.y = "SampleName", all.x = TRUE)
+mappedForPlot <- mappedForPlot %>% arrange(SampleIDs, Category)
+mappedForPlot$Category <- relevel(mappedForPlot$Category, ref = "NumUnmapped")
+
+ggplot(mappedForPlot, aes(x = SampleIDs, y= Counts, fill = Category)) + 
+  geom_col() +
+  facet_grid(cols = vars(eval(as.name(variableOfInterest))), scales = "free_x") +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1))
+```
+
+## Distribution of mapped reads lengths
+```{r mappedReadLengthdistriPlot, fig.height=12, fig.width=9}
+# Modifiying some bam access parameters from default
+yieldSize(bamList) <- 700000
+qcBamParam <- bamParam
+bamWhat(qcBamParam)  <- c("qwidth")	
+bamTag(qcBamParam)  <- c("NM", "AS", "X0", "XT","XA") 
+
+# Fecthing reads info and construct a df
+galnList <- bplapply(bamList, readGAlignments, param=qcBamParam, BPPARAM = parallelBackEnd)
+# SHOULD TRY TO //ize that:
+readMapQual <- data.frame()
+	for (i in 1:length(galnList)) {
+		if (!length(galnList[[i]]) == 0) { 
+			table <- cbind(
+			  as.data.frame(mcols(galnList[[i]])),
+				sample = names(galnList)[i]
+				)
+			readMapQual <- rbind(readMapQual, table)
+		}
+	}
+yieldSize(bamList) <- NA
+#write.csv(readMapQual, file = "QC_readMapQual.csv")
+
+readMapQual <- merge(readMapQual, sampleInfoBam[, c("SampleName", variableOfInterest)], by.x = "sample", by.y = "SampleName", all.x = TRUE)
+
+readMapQual$sample <- reorder(readMapQual$sample, readMapQual[, variableOfInterest], function(x) min(as.integer(x)))
+
+# Plotting
+qwidthDistriPlot <- ggplot(readMapQual, aes(x = qwidth)) +
+  geom_histogram(binwidth = 1, aes(fill = eval(as.name(variableOfInterest)))) +
+  ylab("Read count") +
+  xlab("Read width (b)") +
+  facet_wrap(~sample, ncol = 2, scales = "free_y", dir = "v") +
+  scale_x_continuous(breaks=seq(8, 50, by = 3), minor_breaks = 8:50) +
+  theme(axis.text = element_text( size = 8 ),
+        axis.text.x = element_text( size = 8 ),
+        axis.title = element_text( size = 8, face = "bold" ),
+        legend.position="bottom",
+        strip.text = element_text(size = 8, hjust = 0))
+qwidthDistriPlot
+
+rm(readMapQual)
+```
+
+
+# Computing counts of reads mapping to genomic features of interest and filtering out irrelevant features
+
+## Compute read counts for all features
+
+```{r readCountsComputing}
+sstackClustCounts <- computeCountsInFeatures(features = sRnaClusters, reads = bamList, bamParam = bamParam)
+colnames(sstackClustCounts) <- names(bamList) # I do not understand why but this is not populated by summarizeOverlaps()
+cts <- assays(sstackClustCounts)$counts
+```
+
+Quantiles information on the distribution of total mapped reads (across libraries) per feature: **`r quantile(rowSums(cts))`**
+
+
+## Filtering out features with low counts 
+
+Filtering out the features (sRNA cluster) that accumulate a very low number of reads.  
+This is set at a minimal treshold of **`r minRowSumTreshold` reads** total reads across all libs for a feature to be kept in analysis.
+
+```{r abundFiltering}
+featuresAboveTreshold <- rowSums(cts) > minRowSumTreshold
+abundFilteringStats <- as.data.frame(table(featuresAboveTreshold))
+
+# Filtering on abundance
+sstackClustCounts <- sstackClustCounts[featuresAboveTreshold, ]
+
+# Checking filtering
+summary(sstackClustCounts)
+```
+
+
+## Filtering out features that overlap with annotated rRNA or tRNA loci.
+
+Right now the code is a bit clumsy...
+
+TEST IF TYPES IN PROVIDED gff HAS THE RELEVANT TYPES
+
+IF NOT TEST IF OTHER GFF PROVIDED
+
+OTHERWISE 
+
+
+```{r locationFiltering}
+# clumsily getting annotation from the NCBI annotation of the IRGSP genome assembly  with 'proper' seqlevels
+NipNCBIAnnot <- rtracklayer::import(file.path(dirname(genomeGffFile), "Oryza_sativa_genomic_refseq_IRGSP_seqlevels.gff3"), format = "gff3")
+
+# Find in this annotation GRanges corresponding to tRNA, rRNA et al.
+unwantedTypes <- c("tRNA", "rRNA", "pseudogenic_tRNA")
+toBeFilteredOutGR <- NipNCBIAnnot[NipNCBIAnnot$type %in% unwantedTypes, ]
+
+
+# Filtering out features that overlap with annotation elements that should not be counted.
+featuresOutsideUnwanted <- sstackClustCounts  %outside% toBeFilteredOutGR
+locationFilteringStats <- as.data.frame(table(featuresOutsideUnwanted))
+sstackClustCounts <- sstackClustCounts[featuresOutsideUnwanted, ]
+
+# Checking filtering
+summary(sstackClustCounts)
+```
+
+
+
+```{r locationFiltering, eval= FALSE}
+unwantedTypes <- c("tRNA", "rRNA", "pseudogenic_tRNA")
+  cat("**** Filtering features with a 'type' field matching one of the following values: ", unwantedTypes, "'. ****\n")
+
+# Loading unwanted annotations
+if (file.exists(filterGffFile)) {
+  UndesirableAnnot <- rtracklayer::import(filterGffFile)
+  cat("**** Using Annotation provided in the 'filterGffFile' for filtering undesirable features out of the analysis. ****\n")
+} else {
+  UndesirableAnnot <- rtracklayer::import(genomeGffFile)
+  cat("**** No ''filterGffFile' was specified ****\n")
+  cat("**** Using Annotation provided in the 'genome_annotation_file' for filtering undesirable features out of the analysis. ****\n")
+}
+# Find in this annotation GRanges corresponding to tRNA, rRNA et al.
+toBeFilteredOutGR <- UndesirableAnnot[UndesirableAnnot$type %in% unwantedTypes, ]
+
+if(length(toBeFilteredOutGR) == 0) {
+  cat("**** Filtering undesirable features cannot proceed with the provided annotation because it does not contain features with a type matching '", unwantedTypes, "'. ****\n")
+  cat("**** For information, here is the distribution of features by type:\n ****")
+  print(knitr::kable(table(UndesirableAnnot$type)))
+  cat("\n")
+  cat("*****!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!****\n")
+  locationFilteringStats <- data.frame()
+} else {
+  # Filtering out features that overlap with annotation elements that should not be counted.
+  outsideUnwanted <- sstackClustCounts  %outside% toBeFilteredOutGR
+  locationFilteringStats <- as.data.frame(table(outsideUnwanted))
+  sstackClustCounts <- sstackClustCounts[outsideUnwanted, ]
+  # Checking filtering
+  summary(sstackClustCounts)
+}
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+**Reporting in filtering results:**
+
+- Counts of features removed based on low total reads count
+`r knitr::kable(abundFilteringStats)`
+- Counts of features removed because they overlapped with tRNA, rRNA, ... elements
+`r knitr::kable(locationFilteringStats)`
+
+## Saving count data as a csv file and a Rdata file.
+
+```{r saveCountData}
+cts <- assays(sstackClustCounts)$counts
+colnames(cts) <- colnames(sstackClustCounts)
+rownames(cts) <- rownames(sstackClustCounts)
+write.csv(file = file.path(outDir, "sstackClustCounts.csv"), cts)
+save(file = file.path(outDir, "sstackClustCounts.Rdata"), sstackClustCounts)
+```
+
+
+## Description of the filtered read counts data using functions from the `SARTools` package 
+
+### Summary of the count table.
+Provides a basic description of these raw counts (min and max values, median, etc).
+
+```{r countTableSummary, echo=FALSE, results="asis"}
+fun_summary=function(x){
+  out=c(quantile(x,c(0,0.25,0.5),type=1),mean(x),quantile(x,c(0.75,1),type=1))
+  names(out)=c("Min.","1st Qu.","Median","Mean","3rd Qu.","Max.")
+  return(round(out,0))
+}
+
+#print(xtable(apply(cts,2,fun_summary),caption="Summary of the raw counts.",digits=0), type="html", html.table.attributes = "align='center'")
+DT::datatable(apply(cts,2,fun_summary))
+```
+
+
+```{r SARToolsFunctionsParams}
+# Specifying a list of parameters for the SARTools fonctions below.
+group <- sampleInfoBam[ , variableOfInterest]
+col <- RColorBrewer::brewer.pal(n= nlevels(group), "Paired")
+SARToolsParamLst <- list(counts = cts, group = group, col = col, outfile = FALSE)
+```
+
+### Total number of reads per sample
+```{r readsPerSamplePlot}
+do.call(barplotTotal, SARToolsParamLst)
+```
+
+https://github.com/PF2-pasteur-fr/SARTools/blob/master/R/barplotTotal.R
+
+### Percentage of loci with a count of 0 per sample
+```{r percentageOfNullCountLoci}
+do.call(barplotNull, SARToolsParamLst)
+```
+
+https://github.com/PF2-pasteur-fr/SARTools/blob/master/R/barplotNull.R
+
+### Distribution of counts per loci per sample
+```{r}
+do.call(densityPlot, SARToolsParamLst)
+```
+
+https://github.com/PF2-pasteur-fr/SARTools/blob/master/R/densityPlot.R
+
+
+### Features which catch the most important number of reads
+```{r}
+majFeatures <- do.call(majSequences, SARToolsParamLst)
+```
+
+https://github.com/PF2-pasteur-fr/SARTools/blob/master/R/majSequences.R
+
+Here is some info about loci that have the highest counts of mapped reads:
+```{r, fig.width=10, fig.height=10}
+df <- cbind(
+as.data.frame(mcols(addRefAnnot(querGR = sRnaClusters[row.names(majFeatures)], refGR = refGenes, mcolsToKeep = c("Note"), prefix = "OlapGene_"))),
+majFeatures)
+DT::datatable(df)
+```
+
+Values in the last columns titled with the name of the samples contains the the percentage of reads captures by the corresponding feature in the corresponding library. 
+
+### SERE and pairwise scatter plots
+
+The SERE statistic has been proposed as a similarity index between RNA-Seq samples [@Schulze2012]. It measures whether the variability between samples is random Poisson variability or higher. Pairwise SERE values are printed in the lower triangle of the pairwise scatter plot. The value of the SERE statistic is:
+
+- 0 when samples are identical (no variability at all: this may happen in the case of a sample duplication);
+
+- 1 for technical replicates (technical variability follows a Poisson distribution);
+
+- greater than 1 for biological replicates and samples from different biological conditions (biological variability is higher than technical one, data are over-dispersed with respect to Poisson). The higher the SERE value, the lower the similarity. It is expected to be lower between biological replicates than between samples of different biological conditions. Hence, the SERE statistic can be used to detect inversions between samples.
+
+**Here is the matrix of SERE statistics but would be better to plot a heatmap with clustering**:
+
+```{r}
+sereMat <- tabSERE(cts)
+knitr::kable(sereMat)
+```
+
+```{r, fig.height= 15, fig.width= 15}
+do.call(pairwiseScatterPlots, SARToolsParamLst[c("counts", "outfile")])
+```
+
+
+# Computing differential accumulation of sRNA in experimentally inferred sRNA loci across experimental treatments using the DESeq2 package
+
+Borrowed code from:
+- the Github repository of package [`SARTools`](https://github.com/PF2-pasteur-fr/SARTools/blob/master/R/run.DESeq2.r)
+- the [DESeq2 vignette](http://bioconductor.org/packages/devel/bioc/vignettes/DESeq2/inst/doc/DESeq2.html)
+
+
+```{r eval= replicated}
+suppressPackageStartupMessages(library("DESeq2"))
+deseq2Output <- runDESeq2(se = sstackClustCounts, varInt = variableOfInterest, batch = batch, comps = comparisons, 
+                          locfunc=locfunc,  fitType=fitType, sizeFactEstimMethod = sizeFactEstimMethod, pAdjustMethod=pAdjustMethod,
+                          cooksCutoff=cooksCutoff, independentFiltering=independentFiltering, alpha=alpha,
+                          lfcThreshold = lfcThreshold, altHypothesis = altHypothesis)
+```
+
+**NB!! Parameter values for differential accumulation testing with DESeq2**:
+
+
+Parameter | Value 
+---------|---------- 
+locfunc | `r locfunc` 
+fitType | `r fitType` 
+sizeFactEstimMethod | `r sizeFactEstimMethod` 
+pAdjustMethod | `r pAdjustMethod` 
+cooksCutoff | `r cooksCutoff` 
+independentFiltering | `r independentFiltering` 
+alpha | `r alpha` 
+lfcThreshold | `r lfcThreshold` 
+altHypothesis | `r altHypothesis` 
+
+Reminder from the DESeq2 man page: testing for the null hypothesis with the alternative hypothesis being that log2 fold changes is `r altHypothesis` than a given threshold (`lfcThreshold`). If `lfcThreshold` is specified, the results are for Wald tests, and LRT p-values will be overwritten
+
+
+Summaries for the various treatment comparisons:  
+
+```{r, eval = replicated}
+for (i in 1:length(deseq2Output$results)) {
+  cat("_____________________________\n")
+  cat(names(deseq2Output$results[i]))
+  summary(deseq2Output$results[[i]], alpha = alpha)
+  }
+```
+
+
+# Computing differential accumulation of sRNA in experimentally inferred sRNA loci using the DESeq package for datasets with unreplicated treatments
+
+
+```{r, eval= !replicated}
+suppressPackageStartupMessages(library("DESeq"))
+sstackClustCDSet <- DESeq::newCountDataSet(countData=assays(sstackClustCounts)$counts, conditions=colData(sstackClustCounts)[, variableOfInterest])
+
+AllLociExprStats <- performDESeqBinCompPipeline(sstackClustCDSet, method = "blind",
+		comparisons = comparisons, min.lfc = 0, maxAdjPval = 1)
+```
+
+
+
+# Exploration of variability within the experiment using the `SARTools` package
+
+The main variability within the experiment is expected to come from biological differences between the samples. This can be checked in two ways. The first one is to perform a hierarchical clustering of the whole sample set. This is performed after a transformation of the count data which can be either a Variance Stabilizing Transformation (VST) or a regularized log transformation (rlog) [@Anders2010; @Love2014].
+
+```{r sarToolsVariabilityParams, eval= replicated}
+if (typeTrans == "VST") {
+  transformedData <- DESeq2::varianceStabilizingTransformation(deseq2Output$dds)
+} else {
+  transformedData <- DESeq2::rlogTransformation(deseq2Output$dds)
+}
+counts.trans <- assay(transformedData)
+```
+
+##  PCA of the VSTransformed counts data.
+On this figure, the first principal component (PC1) is expected to separate samples from the different biological conditions, meaning that the biological variability is the main source of variance in the data.
+
+First two components of a Principal Component Analysis, with percentages of variance associated with each axis.
+```{r pcaPlot, fig.width= 12, fig.height= 8, eval= replicated}
+PCAPlot(counts.trans=counts.trans, group=SARToolsParamLst$group, col=SARToolsParamLst$col, outfile=SARToolsParamLst$outfile)
+```
+
+## Samples  dendrogram obtained from `r typeTrans`-transformed data.
+An euclidean distance is computed between samples, and the dendrogram is built upon the Ward criterion. We expect this dendrogram to group replicates and separate biological conditions.
+
+
+Sample clustering based on normalized data
+```{r clusterPlot, eval= replicated}
+clusterPlot(counts.trans=counts.trans, group=SARToolsParamLst$group, outfile=SARToolsParamLst$outfile)
+```
+
+# Exploration of DESeq2 data normalisation using the `SARTools` package
+
+## Normalization factors used in the DESeq2 analysis
+
+Normalization aims at correcting systematic technical biases in the data, in order to make read counts comparable across samples. The normalization proposed by DESeq2 relies on the hypothesis that most features are not differentially expressed. It computes a scaling factor for each sample. Normalized read counts are obtained by dividing raw read counts by the scaling factor associated with the sample they belong to. Scaling factors around 1 mean (almost) no normalization is performed. Scaling factors lower than 1 will produce normalized counts higher than raw ones, and the other way around. Here, the normalization was performed with locfunc="`r locfunc`".
+
+```{r, eval= replicated}
+deseq2Output$sf
+```
+
+## Normalisation parameter choice makes sense?
+The histograms below can help to validate the choice of the normalization parameter ("median" or "shorth"). Under the hypothesis that most features are not differentially expressed, each size factor represented by a red line is expected to be close to the mode of the distribution of the counts divided by their geometric means across samples.
+
+```{r diagSizeFactorsPlots1, fig.height= 18, fig.width=14, eval= replicated}
+try(
+diagSizeFactorsPlots(dds=deseq2Output$dds, group=SARToolsParamLst$group, col=SARToolsParamLst$col, outfile=SARToolsParamLst$outfile, plots="diag")
+)
+```
+
+
+Scaling factors of DESeq2 and the total count normalization factors may not perform similarly:
+```{r diagSizeFactorsPlots2, fig.height= 7, fig.width=6, eval= replicated}
+try(
+diagSizeFactorsPlots(dds=deseq2Output$dds, group=SARToolsParamLst$group, col=SARToolsParamLst$col, outfile=SARToolsParamLst$outfile, plots="sf_libsize")
+)
+```
+
+
+## Boxplots before and after normalisation
+
+```{r countsBoxplots, eval= replicated}
+countsBoxplots(deseq2Output$dds, group=SARToolsParamLst$group, col=SARToolsParamLst$col, outfile=SARToolsParamLst$outfile)
+```
+
+# Differential analysis QC for DESeq2 analysis
+
+## Modelisation
+
+DESeq2 aims at fitting one linear model per feature. For this project, the design used is counts `r if(replicated) paste(as.character(design(deseq2Output$dds)),collapse=" ")` and the goal is to estimate the models' coefficients which can be interpreted as $\log_2(\texttt{FC})$. These coefficients will then be tested to get p-values and adjusted p-values.
+
+
+## Outlier detection
+
+Model outliers are features for which at least one sample seems unrelated to the experimental or study design. For every feature and for every sample, the Cook's distance [@cook1977] reflects how the sample matches the model. A large value of the Cook's distance indicates an outlier count and p-values are not computed for the corresponding feature. `r ifelse(!cooksCutoff,"For this project, the detection of model outliers have been turned off by setting the cut-off to the infinite.","")`
+
+
+Boxplot of Cooks's distances
+```{r CooksDboxplot, eval= replicated}
+boxplot(log10(assays(deseq2Output$dds)[["cooks"]]), range=0, las=2)
+```
+
+
+## Dispersions estimation
+
+The DESeq2 model assumes that the count data follow a negative binomial distribution which is a robust alternative to the Poisson law when data are over-dispersed (the variance is higher than the mean). The first step of the statistical procedure is to estimate the dispersion of the data. Its purpose is to determine the shape of the mean-variance relationship. The default is to apply a GLM (Generalized Linear Model) based method (fitType="parametric"), which can handle complex designs but may not converge in some cases. The alternative is to use fitType="local" as described in the original paper [@Anders2010] or fitType="mean". The parameter used for this project is fitType="`r fitType`". Then, DESeq2 imposes a Cox Reid-adjusted profile likelihood maximization [@cox1897 and McCarthy, 2012] and uses the maximum _a posteriori_ (MAP) of the dispersion [Wu, 2013].
+
+Dispersion estimates (left) and diagnostic of log-normality (right)
+```{r dispEstimPlot, fig.width=12, fig.height=6, eval= replicated}
+dispersionsPlot(dds=deseq2Output$dds, outfile=SARToolsParamLst$outfile)
+```
+
+The left panel on figure above shows the result of the dispersion estimation step. The x- and y-axes represent the mean count value and the estimated dispersion respectively. Black dots represent empirical dispersion estimates for each feature (from the observed counts). The red dots show the mean-variance relationship function (fitted dispersion value) as estimated by the model. The blue dots are the final estimates from the maximum _a posteriori_ and are used to perform the statistical test. Blue circles (if any) point out dispersion outliers. These are features with a very high empirical variance (computed from observed counts). These high dispersion values fall far from the model estimation. For these features, the statistical test is based on the empirical variance in order to be more conservative than with the MAP dispersion. These features will have low chance to be declared significant. The figure on the right panel allows to check the hypothesis of log-normality of the dispersions
+
+
+## Independent filtering
+
+DESeq2 can perform an independent filtering to increase the detection power of differentially expressed features at the same experiment-wide type I error. Since features with very low counts are not likely to see significant differences typically due to high dispersion, it defines a threshold on the mean of the normalized counts irrespective of the biological condition. This procedure is independent because the information about the variables in the design formula is not used [@Love2014]. 
+
+
+```{r, eval= replicated}
+ if (independentFiltering){
+   cat("The table below reports the thresholds used for each comparison and the number of features discarded by the independent filtering. Adjusted p-values of discarded features are then set to NA.\n")
+    tabIndepFiltering <- tabIndepFiltering(deseq2Output$results)
+    cat("Number of features discarded by the independent filtering:\n")
+    knitr::kable(tabIndepFiltering, quote=FALSE)
+  } else{
+    cat("For this project, no independent filtering has been performed.\n")
+    tabIndepFiltering <- NULL
+  }
+```
+
+
+## Reshaping the DESEq2 analysis results object in a shape suitable for downstream steps
+
+
+```{r, eval= replicated}
+deseq2ResReshaped <- exportDESeq2Results(out.DESeq2=deseq2Output, group=SARToolsParamLst$group, alpha=alpha, export=FALSE)
+```
+
+
+## Histograms of raw p-values
+```{r, fig.width=8, fig.height=14, eval= replicated}
+rawpHist(complete=deseq2ResReshaped, outfile=SARToolsParamLst$outfile)
+```
+
+
+## MA-plots
+```{r, fig.width=8, fig.height=14, eval= replicated}
+MAPlot(complete=deseq2ResReshaped, alpha=alpha, outfile=SARToolsParamLst$outfile)
+```
+ 
+  
+## Volcano plots
+```{r, fig.width=8, fig.height=14, eval= replicated}
+#volcanoPlot(complete=deseq2ResReshaped, alpha=alpha, outfile=SARToolsParamLst$outfile)
+
+complete <- deseq2ResReshaped
+outfile <- SARToolsParamLst$outfile
+
+ncol <- ifelse(length(complete)<=4, ceiling(sqrt(length(complete))), 3)
+nrow <- ceiling(length(complete)/ncol)
+par(mfrow=c(nrow,ncol))
+for (name in names(complete)){
+  complete.name <- complete[[name]]
+  complete.name$padj[which(complete.name$padj==0)] <- .Machine$double.xmin
+  log10pval <- -log10(complete.name$padj)
+  ylim <- c(0,1) * quantile(log10pval, probs=0.999999, na.rm=TRUE)
+  plot(complete.name$log2FoldChange, pmin(ylim[2], log10pval), ylim=ylim, las=1, cex=0.45,
+       xlab=expression(log[2]~fold~change), ylab=expression(-log[10]~adjusted~P~value),
+       col=ifelse(complete.name$padj <= alpha, "red", "black"), pch=ifelse(log10pval >= ylim[2], 2, 20),
+       main=paste0("Volcano plot - ",gsub("_"," ",name)))
+  abline(h=-log10(alpha), lty=2, col="lightgray")
+}
+
+```
+
+# Filtering and further reshaping of the differential expression analysis results object for downstream steps
+
+```{r, eval = replicated}
+# # List of filtered results objects 
+# deseq2ResFiltered <- lapply(deseq2Output$results, function(res,maxAdjPval){
+#   subset(res, subset = abs(padj) <= maxAdjPval)
+# }, maxAdjPval = maxAdjPval)
+# str(deseq2ResFiltered)
+
+# Data frame of merged results data.frames 
+AllLociExprStats <- mapply(function(res, name, maxAdjPval){
+  if (nrow(res)) {
+      colnames(res)[colnames(res) %in% "Id"] <- "id"
+      res <- cbind(res, comparison = name)
+      res <- droplevels(res)
+      return(res)
+  } else {return(NULL)}
+}, res = deseq2ResReshaped, name = names(deseq2ResReshaped),
+MoreArgs = list(maxAdjPval = maxAdjPval), SIMPLIFY = FALSE
+)
+AllLociExprStats <- do.call(rbind, AllLociExprStats[!sapply(AllLociExprStats, is.null)])
+
+# The 'DELociExprStats' Data frame of filtered results olds diff accumul stats of candidate sRNA loci
+DELociExprStats <- subset(AllLociExprStats, subset = abs(padj) <= maxAdjPval)
+```
+
+
+```{r, eval = !replicated}
+DELociExprStats <- subset(AllLociExprStats, subset = abs(padj) <= maxAdjPval & abs(log2FoldChange) >= lfcThreshold)
+```
+
+
+```{r}
+# Create a GRanges container with the list of Diff accumulating loci obtained after DESeq analysis
+# GRanges in myDEloci are unique.
+# myDEloci will hold in its mcols features that are specific to the loci and the reads mapping to these loci
+myDEloci <- sRnaClusters[unique(DELociExprStats$id)]
+#mcols(myDEloci) <- cbind( DataFrame(id = names(myDEloci)), mcols(myDEloci))
+#mcols(myDEloci)[, "lociSeq"] <- as.character(getSeq(refGenomeSeq, myDEloci), use.names=FALSE)
+#mcols(myDEloci)[, "lociSeq"] <- getSeq(refGenomeSeq, myDEloci)
+
+# MAY WANT TO CONVERT SOME OF VARS IN MCOLS TO NUMERIC
+```
+
+
+
+Structure of the results table describing diff accumulation stats:
+```{r}
+str(as.data.frame(DELociExprStats))
+```
+
+Values in the `mcols` of the GRanges object describing accumulating loci features:
+```{r}
+str(mcols(myDEloci))
+```
+
+
+
+
+
+
+
+# Summary counts of overlap found in annotated features
+
+
+Type of reference features | Count of overlapping DE sRNA clusters 
+---------------------------|-------------------------------------- 
+Gene | `r sum(!is.na(mcols(myDEloci)[ , "OlapGene_Names"]))` 
+Simplified transcript | `r sum(!is.na(mcols(myDEloci)[ , "OlapSimpleTrx_Names"]))` 
+xisRNA | `r sum(!is.na(mcols(myDEloci)[ , "OlapXisRNA_Names"]))` 
+
+
+Total number of DE sRNA clusters : `r length(myDEloci)`
+
+
+# Analysis of differentially expressed candidate sRNA loci.
+
+**BEWARE**, if filtering on diff accumul loci is not stringent enough, this will have to deal with a huge number of probably irrelevant loci.
+
+**NOTE** that after filtering, all subitems in this Heading1 could be run using a separate file, on a personal computer because them require only the 
+
+## Candidate sRNA loci-specific diff accumulation statistics plots
+
+### Distribution of adjusted p-values of diff accumul loci
+```{r}
+lattice::histogram(~padj | comparison, data = DELociExprStats, type = "count")
+```
+
+### Distribution of overall expression means of diff accumul loci
+```{r}
+lattice::histogram(~log2(baseMean) | comparison, data = DELociExprStats, type = "count")
+```
+
+### MA plots of diff accumul loci
+```{r}
+lattice::xyplot(log2FoldChange ~ log2(baseMean) | comparison, data = DELociExprStats,
+		group = cut(padj, 2),
+		auto.key = TRUE, scales = list(y=list(tick.number = 8)))
+```
+
+Point coloring is based on adjusted p-values.
+
+
+## Comparing sets of diff accumul sRNA loci across treatment comparisons 
+
+### Counts of diff accumul loci by comparison
+```{r countOfDiffAccumulLociPerCompm, fig.width= 12}
+barplot(tapply(DELociExprStats$comparison, INDEX = DELociExprStats$comparison, FUN = length))
+```
+
+
+### Using the functions provided in `systemPipeR` package.
+
+Computing the sets of differentially accumulated clusters for each treatment comparison
+```{r}
+mySets <- tapply(as.character(DELociExprStats$id), DELociExprStats$comparison, function(x) x)
+tmp <- names(mySets)
+attributes(mySets) <- NULL # stripping attributes otherwise overLapper complains.
+names(mySets) <- tmp # reassigning names
+
+countOfSets <- length(mySets)
+```
+
+### Venn comparison as bar plot.
+
+**Conceptual details:**
+- Venn intersects follow the typical 'only in' intersect logic of Venn comparisons, such as: labels present only in set A, labels present only in the intersect of A & B, etc. Due to this restrictive intersect logic, the combined Venn sets contain no duplicates.
+
+- In contrast to this, regular intersects follow this logic: labels present in the intersect of A & B, labels present in the intersect of A & B & C, etc. This approach results usually in many duplications of labels among the intersect sets.
+
+
+This is interesting to look for comparisons group specific loci
+```{r systemPipeRVennsetsPlot, fig.width= 9, fig.height= 9, eval= countOfSets > 1}
+vennset <- overLapper(setlist = mySets, complexity = 1:length(mySets), type="vennsets", sep = "&")
+olBarplot(vennset, mincount=1)
+```
+
+
+Using package [`UpSetR`](https://cran.r-project.org/web/packages/UpSetR/README.html) which produces much nicer venn intersect bar plots.
+
+```{r UpSetRPlot, fig.width= 10, fig.height= 8, eval= countOfSets > 1}
+UpSetR::upset(UpSetR::fromList(mySets), nsets = length(mySets),
+              order.by = "freq", empty.intersections = "on",
+      sets.bar.color = "#56B4E9",
+      number.angles = 30, point.size = 3.5, line.size = 2, text.scale = 1.5
+      )
+```
+
+
+### Bar plot of standard intersect counts.
+
+This is interesting to look at comparisons that have a lot of groups in common.
+```{r DELociSetsStandardIntersct, fig.width= 10, fig.height= 11, eval = all(countOfSets > 1, na.rm = TRUE)}
+interset <- overLapper(setlist = mySets, type="intersects", sep = "&")
+olBarplot(interset, mincount=1)
+```
+
+### Treatment comparisons pairwise intersect heatmap.
+
+This gives some kind of a distance matrix among comparisons.
+```{r pairwiseSetIntersectHeatmap, eval = countOfSets > 1}
+olMA <- sapply(names(mySets), 
+      		function(x) sapply(names(mySets), 
+		          function(y) sum(mySets[[x]] %in% mySets[[y]])
+		                  )
+		    ) # Pretty smart way to get the counts. Could have been done differently.
+heatmap(olMA, cexRow = 0.8, cexCol = 0.8) # Could use other heatmpa function with hclustering
+```
+
+
+### Presence-absence matrix of sRNA loci in the set of treatment comparisons.
+```{r , fig.width=10, fig.height=10, eval = all(countOfSets > 1, na.rm = TRUE)}
+interset <- overLapper(setlist = mySets, type="intersects", complexity=2, sep = "&")
+paMA <- intersectmatrix(interset)
+DT::datatable(paMA)
+#heatmap(paMA, Rowv=NA, Colv=NA, col=c("white", "gray")) # DONOTRUN because heatmap will be huge.
+
+mat <- paMA
+row_dend <- as.dendrogram(hclust(dist(mat, method = "euclidean")))
+#row_dend <- sort(row_dend, type = "nodes")
+#row_dend <- color_branches(row_dend, k = 10)
+
+col_dend <- as.dendrogram(hclust(dist(t(mat), method = "euclidean")))
+#col_dend <- sort(col_dend, type = "nodes")
+
+# Create a heatmap of diff accumul status with the dendograms
+paMA_HM <- Heatmap(mat,
+        name = "HClustering of genomic features",
+        heatmap_legend_param = list(title = "DiffExp"),
+        col = c("azure", "darkorange"),
+        column_title = "Treatment comparisons", column_title_side = "top",
+        column_title_gp = gpar(lineheight = 0.9),
+        column_names_side = "bottom",
+        row_title = "Features",
+        show_row_names = FALSE,
+        cluster_rows = row_dend,
+        cluster_columns = col_dend
+        #km = 3
+        )
+paMA_HM
+```
+
+
+**NOTE**: for downstream analysis of clusters of loci with specific diff accumul patterns, it may be useful to compute:
+- the counts of loci per pattern
+_ the list of loci IDs per pattern (with this list one can display interesting things such as expression plots, logfc heatmaps, overlapping genes annotation, ...)
+
+
+
+**ERRROR HERE -->***
+
+
+```{r, eval= all(countOfSets > 1, na.rm = TRUE)}
+patterns <- apply(paMA, 1, function(x) paste0(x, collapse = ""))
+
+diffSetsClusters <- as.data.frame(cbind(id = rownames(paMA), DEpattern = patterns))
+colnames(diffSetsClusters) <- c("id", paste("DEpattern", paste(colnames(paMA), collapse = "_"), sep = "_"))
+
+tmp <- merge(mcols(myDEloci), DataFrame(diffSetsClusters), by = "id", all.x = TRUE, sort = FALSE)
+mcols(myDEloci) <- mcols(myDEloci) <- tmp[match(names(myDEloci), tmp$id),]
+```
+
+
+## Clustering diff accumul loci with similar expresssion patterns
+
+### Model-based automatic clustering
+
+
+```{r mClustDEloci, eval = all(replicated, countOfSets > 1, na.rm = TRUE), fig.height=8, fig.width=8}
+
+# Transfroming again raw data but this time takin the experimental design into account
+if (typeTrans == "VST") {
+  transformedData <- DESeq2::varianceStabilizingTransformation(deseq2Output$dds, blind = FALSE)
+} else {
+  transformedData <- DESeq2::rlogTransformation(deseq2Output$dds, blind = FALSE)
+}
+counts.trans <- assay(transformedData)
+
+# Performing the model based clustering
+exprMat <- counts.trans[names(myDEloci), ] # Performing clustering only for diff expressed loci
+lociExpClust <- Mclust(exprMat, warn = FALSE)
+plot(lociExpClust, what = "BIC")
+summary(lociExpClust)
+
+lociExpClustClassif <- as.data.frame(cbind(id = names(lociExpClust$classification), MCluster = factor(lociExpClust$classification))) %>% arrange(id)
+
+# Appending the Mclust classification to myDEloci
+tmp <- merge(mcols(myDEloci), DataFrame(lociExpClustClassif), by = "id", all.x = TRUE, sort = FALSE)
+mcols(myDEloci) <- mcols(myDEloci) <- tmp[match(names(myDEloci), tmp$id),]
+
+```
+
+### Plotting expression heatmap with model clustering
+
+```{r DElociExpressionHeatMap, eval = all(replicated, countOfSets > 1, na.rm = TRUE), fig.width= 12, fig.height= 14}
+# Making heatmap annotation with the clustering data for loci
+annotFactor <- factor(lociExpClust$classification)
+loci_annot <- HeatmapAnnotation(MCluster = annotFactor, show_annotation_name = TRUE,
+                                col = list(MCluster = colorsForFactor(annotFactor,eerFun = "paletteer::paletteer_c", palFullName = "viridis::inferno")),
+                                which = "row")
+
+# Making heatmap annotation with the sample info data for samples
+vars <- c(variableOfInterest, batch)
+annotDf <- as.data.frame(colData(transformedData)[, vars, drop = FALSE])
+cols = lapply(annotDf, colorsForFactor, palFullName = "jcolors::pal7")
+samples_annot <- HeatmapAnnotation(df = annotDf, show_annotation_name = TRUE, col = cols)
+
+# Making the heatmap with diff accumul loci transformed normalized expression data
+
+
+DELociExpr_HM <- Heatmap(exprMat,
+        name = paste(typeTrans, "\ntransform of\nnormalized counts"),
+        #heatmap_legend_param = list(title = "Detected as differentially expressed"),
+        col = colorRampPalette(brewer.pal(10, "Spectral"))(256),
+        top_annotation = samples_annot,
+        column_title = "Samples", column_title_side = "top",
+        column_title_gp = gpar(lineheight = 0.9),
+        column_names_side = "bottom",
+        row_title = "DEloci",
+        show_row_names = FALSE,
+        clustering_distance_rows = "pearson",
+        clustering_distance_columns = "pearson",
+        km = nlevels(lociExpClustClassif$MCluster)
+        )
+DELociExpr_HM + loci_annot
+```
+
+
+## Updating the diff expression tables with info on sRNA cluster features
+
+```{r}
+DELociExprStats <- merge(DELociExprStats, as.data.frame(mcols(myDEloci)), all.x = TRUE, by = "id", sort = FALSE)
+
+AllLociExprStats <- merge(AllLociExprStats, as.data.frame(mcols(sRnaClusters)), all.x = TRUE, by = "id", sort = FALSE)
+
+```
+
+
+
+## Overlap with annotated MIRNA
+
+First looking at the counts of DE sRNA loci that overlap with a MIRNA annotation
+
+```{r}
+sRNALociOverlapMIRNA <- subset(mcols(myDEloci), subset = !is.na(pri_miRNA))
+countDEMIRNA <- length(unique(sRNALociOverlapMIRNA$id))
+
+anyDEMIRNA <- as.logical(countDEMIRNA)
+```
+
+There are **`r countDEMIRNA`** sRNA loci overlapping with a MIRNA annotation and that are diff accumul in one of the tested treatment comparisons.
+
+```{r DE_MIRNA, eval = anyDEMIRNA}
+##################
+### RECYCLE SOME OF THE CODE IN shortStack_analysis.Rmd
+##################
+
+```
+**TO BE IMPLEMENTED**
+
+
+
+# Computing DE sRNA locus-specific stats and ploting in batch mode 
+
+How to define:
+
+- what are the loci of interest.
+- the types of plot that are required
+
+Because depending on the answers, there may be **thousands of files** that are generated... 
+
+
+## Get the required info from the bam files
+
+Read-specific info is stored in a list of data frames. Each element of the list corresponding to a locus (GRanges)
+
+```{r getDElociReadsInfo, warning=FALSE}
+# Remove  'chrC', 'chrM' from seqlevels(myDEloci)
+seqlevels(myDEloci) <- seqlevelsInUse(myDEloci)
+#selectedLociForInspection <-  myDEloci[!is.na(mcols(myDEloci)[ , "OlapXisRNA_Names"])]
+selectedLociForInspection <-  myDEloci
+
+sample2treatMapping <- data.frame(sample = names(bamList), treatment = as.character(mcols(bamList)[, variableOfInterest]))
+
+readsInfo <- bplapply(X = 1:length(selectedLociForInspection), FUN = function(i, sample2treatMapping) {
+    # Get the info on reads contained in one GRanges element
+    x <- inspectReadsInGRanges(gr = selectedLociForInspection[i],
+                               bamfile = bamList,
+                               returndf = TRUE, printPlot = FALSE, returnAlns = FALSE)
+    # Append info on the relevant treatment for each read
+    y <- merge(x, sample2treatMapping, all.x = TRUE, sort = FALSE)
+    return(y)
+  }, sample2treatMapping = sample2treatMapping
+)
+
+# readsInfo <- lapply(X = 1:length(selectedLociForInspection), FUN = function(i, sample2treatMapping) {
+#     # Get the info on reads contained in one GRanges element
+#     x <- inspectReadsInGRanges(gr = selectedLociForInspection[i],
+#                                bamfile = bamList,
+#                                returndf = TRUE, printPlot = FALSE, returnAlns = FALSE)
+#     # Append info on the relevant treatment for each read 
+#     y <- merge(x, sample2treatMapping, all.x = TRUE, sort = FALSE)
+#     return(y)
+#   }, sample2treatMapping = sample2treatMapping
+# )
+
+names(readsInfo) <- names(selectedLociForInspection)
+```
+
+## Generate histograms of sRNA reads and read mapping quality statistics for candidate sRNA loci
+
+```{r plotDElociReadsInfo, warning= FALSE, eval = TRUE}
+# ggplot2 stacked bar charts
+plotWhat <- list("width", "NM", "X0", "XT", c("strand", "NM"))
+
+for (i in 1:length(readsInfo)) {
+  if (nrow(readsInfo[[i]]) != 0) {
+    plotsList <- lapply(plotWhat, function(what, readsInfoDf){
+      if(length(what) == 1) {
+        title <- paste("Distribution of the", what, "tag in reads.")
+        if(what %in% c("width")) {
+          ggplot(readsInfoDf, aes(x = treatment, y = width, fill = treatment)) +
+            geom_violin(trim = TRUE, scale = "count", draw_quantiles = TRUE, kernel = "triangular") +
+            scale_fill_brewer(palette="Spectral") +
+            scale_y_continuous(breaks = min(readsInfoDf$width):max(readsInfoDf$width)) +
+            scale_x_discrete(drop=FALSE) +
+            labs(title = title) +
+            theme_bw() +
+            theme(legend.title=element_blank(), legend.position = "none")
+        } else {
+          ggplot(readsInfoDf, aes(x = treatment, fill = factor(I(eval(as.name(what)))))) +
+            geom_bar() +
+            scale_fill_brewer(palette="Spectral") +
+            scale_x_discrete(drop=FALSE) +
+            labs(title = title) +
+            theme_bw() +
+            theme(legend.title=element_blank())
+        }
+      } else if (length(what) == 2) {
+        title <- paste("Distribution of the", what[1], "by", what[2], "tag in reads.")
+        ggplot(readsInfoDf, aes(x = factor(I(eval(as.name(what[1])))), fill = factor(I(eval(as.name(what[2])))))) +
+          geom_bar() +
+          scale_fill_brewer(palette="Spectral") +
+          scale_x_discrete(drop=FALSE) +
+          xlab(label = what[1]) +
+          labs(title = title) +
+          facet_wrap(vars(treatment), scales = "free_y", drop = FALSE) +
+          theme_bw() +
+          theme(legend.title=element_blank())
+      } else {
+        warning("The 'plotWhat' list contains objects of length other that 1 or 2. They will be ignored.")
+        next
+      }
+    }, readsInfoDf = readsInfo[[i]]
+    )
+    
+    lay <- rbind(c(1,2),
+                 c(3,4),
+                 c(5,5),
+                 c(5,5))
+    outFile <- file.path(plotsByClusterDir, paste(chartr(":", "_", names(readsInfo[i])), "_", "readStatsPlots", ".svg", sep = ""))
+    Cairo(type="svg", file = outFile, width = 9, height = 12, units = "in")
+    gridExtra::grid.arrange(grobs = plotsList, layout_matrix = lay,
+                            top = paste("Features of reads mapping to range:", names(readsInfo[i])))
+    dev.off()
+  }
+}
+
+```
+
+
+```{r parrallelPlotDElociReadsInfo, warning= FALSE, eval = FALSE}
+# ggplot2 stacked bar charts
+plotWhat <- list("width", "NM", "X0", "XT", c("strand", "NM"))
+
+invisible(
+  bplapply(X = 1:length(readsInfo), FUN = function(i, readsInfo, plotWhat) {
+    if (nrow(readsInfo[[i]]) != 0) {
+      plotsList <- lapply(plotWhat, function(what, readsInfoDf){
+        if(length(what) == 1) {
+          title <- paste("Distribution of the", what, "tag in reads.")
+          if(what %in% c("width")) {
+            ggplot(readsInfoDf, aes(x = treatment, y = width, fill = treatment)) +
+              geom_violin(trim = TRUE, scale = "count", draw_quantiles = TRUE, kernel = "triangular") +
+              scale_fill_brewer(palette="Spectral") +
+              scale_y_continuous(breaks = min(readsInfoDf$width):max(readsInfoDf$width)) +
+              scale_x_discrete(drop=FALSE) +
+              labs(title = title) +
+              theme_bw() +
+              theme(legend.title=element_blank(), legend.position = "none")
+          } else {
+            ggplot(readsInfoDf, aes(x = treatment, fill = factor(I(eval(as.name(what)))))) +
+              geom_bar() +
+              scale_fill_brewer(palette="Spectral") +
+              scale_x_discrete(drop=FALSE) +
+              labs(title = title) +
+              theme_bw() +
+              theme(legend.title=element_blank())
+          }
+        } else if (length(what) == 2) {
+          title <- paste("Distribution of the", what[1], "by", what[2], "tag in reads.")
+          ggplot(readsInfoDf, aes(x = factor(I(eval(as.name(what[1])))), fill = factor(I(eval(as.name(what[2])))))) +
+            geom_bar() +
+            scale_fill_brewer(palette="Spectral") +
+            scale_x_discrete(drop=FALSE) +
+            xlab(label = what[1]) +
+            labs(title = title) +
+            facet_wrap(vars(treatment), scales = "free_y", drop = FALSE) +
+            theme_bw() +
+            theme(legend.title=element_blank())
+        } else {
+          warning("The 'plotWhat' list contains objects of length other that 1 or 2. They will be ignored.")
+          next
+        }
+      }, readsInfoDf = readsInfo[[i]]
+      )
+      
+      lay <- rbind(c(1,2),
+                   c(3,4),
+                   c(5,5),
+                   c(5,5))
+      outFile <- file.path(plotsByClusterDir, paste(chartr(":", "_", names(readsInfo[i])), "_", "readStatsPlots", ".svg", sep = ""))
+      Cairo(type="svg", file = outFile, width = 9, height = 12, units = "in")
+      gridExtra::grid.arrange(grobs = plotsList, layout_matrix = lay,
+                              top = paste("Features of reads mapping to range:", names(readsInfo[i])))
+      dev.off()
+    }
+  }, readsInfo = readsInfo, plotWhat = plotWhat)
+)
+```
+
+
+
+## Table summarizing mapping stats by locus for expanding info in the locus table
+
+```{r computeDElociReadsStats}
+# function simplifying calculation and retrival of stats from 'long table'
+getDesiredValues <- function(desiredValues, propTable) {
+  emptyVals <- rep(0, times = nrow(propTable))
+  idx <- match(desiredValues, colnames(propTable))
+  result <- propTable[,idx]
+  result[is.na(names(result))] <- emptyVals
+  names(result) <- as.character(desiredValues)
+  return(result)
+}
+
+# Summarizing mapping stats by locus for expanding info in the locus table
+readsStatsForSelectedLocs <- bplapply(readsInfo,  function(x) {
+  strandness <- prop.table(t(xtabs(formula =  ~ strand, data = x)), margin = 1)
+  strandness <- getDesiredValues(desiredValues = c("+", "-"), propTable = strandness)
+  
+  X0 <- prop.table(t(xtabs(formula =  ~ X0 , data = x)), margin = 1)
+  X0 <- getDesiredValues(desiredValues = 1:2, propTable = X0)
+  names(X0) <- sprintf("%02.0f_Hit(s)", as.integer(names(X0)))
+  
+  width <- prop.table(t(xtabs(formula =  ~ width, data = x)), margin = 1)
+  width <- getDesiredValues(desiredValues = 20:24, propTable = width)
+  names(width) <- paste(names(width), "nt", sep = "_")
+  
+  meanWidth <- c(meanWidth = mean(x$width, na.rm = TRUE))
+  
+  NM <- prop.table(t(xtabs(formula =  ~ NM, data = x)), margin = 1)
+  
+  NM <- getDesiredValues(desiredValues = 0:2, propTable = NM)
+  names(NM) <- sprintf("EditDistance_%02.0f", as.integer(names(NM)))
+  
+  readsInLocusStats <- c(strandness, X0, width, meanWidth, NM)
+  readsInLocusStats
+})
+
+readsStatsForSelectedLocs <- do.call(rbind, readsStatsForSelectedLocs)
+readsStatsForSelectedLocs <- cbind(id = rownames(readsStatsForSelectedLocs), as.data.frame(round(readsStatsForSelectedLocs, 2)))
+
+# Merge info in mcols(myDEloci), making sure match between GRanges and mcol values is preserved...
+tmp <- merge(mcols(myDEloci), DataFrame(readsStatsForSelectedLocs, check.names = FALSE), by = "id", all.x = TRUE, all.y = FALSE, sort = FALSE)
+mcols(myDEloci) <- tmp[match(names(myDEloci), tmp$id),]
+
+```
+
+
+Heatmap of this matrix of stats to see whether there are loci that form groups with similar features:
+
+
+```{r heatmapDElociReadsStats1}
+readStatsMat <- readsStatsForSelectedLocs[, !colnames(readsStatsForSelectedLocs) %in% c("id", "meanWidth", "-", "+")]
+
+
+strand_ht <- Heatmap(readsStatsForSelectedLocs[, "+", drop = FALSE], name = "PlusStrand",
+                     col = colorRampPalette(brewer.pal(9, "YlGnBu"))(256), column_names_side =  "top",
+                    show_row_names = FALSE)
+width_ht <- Heatmap(readsStatsForSelectedLocs[ , "meanWidth",  drop = FALSE], name = "meanWidth",
+                     col = colorRampPalette(brewer.pal(9, "YlOrRd"))(256), column_names_side =  "top",
+                    row_names_gp = gpar(fontsize = 9),
+                    show_row_names = TRUE)
+```
+
+
+```{r heatmapDElociReadsStats2, fig.height= 20}
+
+ht <- Heatmap(readStatsMat,
+        name = "Percentage",
+        #heatmap_legend_param = list(title = "Detected as differentially expressed"),
+        col = colorRampPalette(brewer.pal(9, "YlGnBu"))(256),
+        cluster_columns = FALSE,
+        column_title = "Features of mapping reads", column_title_side = "top",
+        column_title_gp = gpar(lineheight = 0.9),
+        column_names_side = "top",
+        row_title = "DEloci",
+        show_row_names = FALSE,
+        row_names_gp = gpar(fontsize = 9),
+        clustering_distance_rows = "euclidean",
+        heatmap_legend_param = list(legend_direction = "horizontal", title_position = "lefttop")
+      )
+ht_lst <- ht + strand_ht + width_ht
+draw(ht_lst, heatmap_legend_side = "bottom")
+```
+
+
+
+
+## List of aggregated tables of unique read seqs by strand and treatment for plotting or seq alignement display
+
+**BEWARE for reads mapping on the minus strand, the qseq has to be revcomplemented** if one wants to work on the actual read seq....
+
+```{r}
+# Aggregated table by strand, read seq and treatment for plotting or seq alignement display
+uniqueReadsSeqsForSelectedLocs <- bplapply(readsInfo, function(x) {
+  x %>%
+    group_by(treatment, strand, readSeq) %>%
+    summarise(count = n()) %>%
+    mutate(length = nchar(as.character(readSeq)), fastaTitle = sprintf("%05.0f_%02.0f_%s", count,
+                                                                       length, treatment)) %>%
+    arrange(desc(fastaTitle))
+})
+### BEWARE the qseq for reads mapping on the minus strand has to be revcomple if one wants to work on the actual read seq....
+```
+
+
+## Expression plot of xisRNA loci across experimental treatments
+
+**May want to omit this step**
+
+
+```{r expressionPlotsForXisOverlappingDEclusters, eval = replicated}
+# selectedLociForInspection
+idsToBePloted <- as.matrix(
+  mcols(myDEloci)[ , c("id", "OlapGene_Names")]
+  )
+
+if(nrow(idsToBePloted) > 0) {
+  apply(idsToBePloted, 1, function(x, intgroup, dds) {
+    title <- paste(x[2], x[1], sep = "_")
+    outFile <- file.path(plotsByClusterDir, paste(chartr(":", "_", x[1]), "_ExpressionPlot.svg", sep = ""))
+    
+    d <- plotCounts(dds = dds, gene=x[1], intgroup=intgroup, 
+                    returnData=TRUE)
+    p <- ggplot(d, aes_(x=as.name(intgroup), y=quote(count))) +
+      geom_point(aes_(color=as.name(intgroup)), position=position_jitter(w=0.1,h=0)) +
+      scale_y_log10() +
+      annotation_logticks(sides = "rl") +
+      labs(title = title) + theme_bw()
+    ggsave(filename = outFile, plot = p)
+  }, intgroup = variableOfInterest, dds = deseq2Output$dds)
+}
+```
+
+
+# Write important output files to disc.
+Diff accumul sRNA loci data table and gff3 to disk
+
+```{r}
+### Write Diff accumul sRNA loci data table to disk
+write.table(DELociExprStats,
+		file = file.path(outDir, paste0("sRNALoci_DE_stats", ".txt")),
+		append = FALSE, quote = FALSE, sep = "\t",
+		eol = "\n", na = "", dec = ".", row.names = FALSE,
+		col.names = TRUE)
+
+### Write complete sRNA loci data table to disk
+write.table(AllLociExprStats,
+		file = file.path(outDir, paste0("sRNAloci_ALL_stats", ".txt")),
+		append = FALSE, quote = FALSE, sep = "\t",
+		eol = "\n", na = "", dec = ".", row.names = FALSE,
+		col.names = TRUE)
+
+### Write info on diff accumul sRNA loci to disk and as a table
+write.table(as.data.frame(mcols(myDEloci), optional = TRUE),
+		file = file.path(outDir, paste0("sRNALoci_features", ".txt")),
+		append = FALSE, quote = FALSE, sep = "\t",
+		eol = "\n", na = "", dec = ".", row.names = FALSE,
+		col.names = TRUE)
+
+save(file = file.path(outDir, "myDEloci.Rdata"), myDEloci)
+
+### Use rtracklayer to export a gff3 file with all the info
+rtracklayer::export(myDEloci, file.path(outDir, "myDEloci.gff3"), "gff3")
+
+```
+
+all(names(myDEloci) == mcols(myDEloci)$id)
+
+
+# Finishing operations
+
+## Saving the whole R workspace
+
+```{r}
+save.image(file = file.path(outDir, "sRNA_analysis_workspace.RData"))
+```
+
+
+## Terminating the parallel computing backend
+```{r}
+bpstop(parallelBackEnd)
+```
+
+
+## Reporting on R session info
+```{r}
+sessionInfo()
+```
+
