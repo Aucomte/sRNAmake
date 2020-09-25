@@ -400,36 +400,8 @@ summary(sstackClustCounts)
 
 ## Filtering out features that overlap with annotated rRNA or tRNA loci.
 
-Right now the code is a bit clumsy...
 
-TEST IF TYPES IN PROVIDED gff HAS THE RELEVANT TYPES
-
-IF NOT TEST IF OTHER GFF PROVIDED
-
-OTHERWISE 
-
-
-```{r locationFiltering}
-# clumsily getting annotation from the NCBI annotation of the IRGSP genome assembly  with 'proper' seqlevels
-NipNCBIAnnot <- rtracklayer::import(file.path(dirname(genomeGffFile), "Oryza_sativa_genomic_refseq_IRGSP_seqlevels.gff3"), format = "gff3")
-
-# Find in this annotation GRanges corresponding to tRNA, rRNA et al.
-unwantedTypes <- c("tRNA", "rRNA", "pseudogenic_tRNA")
-toBeFilteredOutGR <- NipNCBIAnnot[NipNCBIAnnot$type %in% unwantedTypes, ]
-
-
-# Filtering out features that overlap with annotation elements that should not be counted.
-featuresOutsideUnwanted <- sstackClustCounts  %outside% toBeFilteredOutGR
-locationFilteringStats <- as.data.frame(table(featuresOutsideUnwanted))
-sstackClustCounts <- sstackClustCounts[featuresOutsideUnwanted, ]
-
-# Checking filtering
-summary(sstackClustCounts)
-```
-
-
-
-```{r locationFiltering, eval= FALSE}
+```{r locationFiltering, eval= TRUE}
 unwantedTypes <- c("tRNA", "rRNA", "pseudogenic_tRNA")
   cat("**** Filtering features with a 'type' field matching one of the following values: ", unwantedTypes, "'. ****\n")
 
@@ -461,22 +433,6 @@ if(length(toBeFilteredOutGR) == 0) {
   summary(sstackClustCounts)
 }
 ```
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 
