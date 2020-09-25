@@ -1,0 +1,296 @@
+---
+title: "Investigating the features of the clusters inferred by ShortStack"
+author: "Seb"
+date: "`r Sys.time()`"
+output:
+  html_document:
+    theme: cerulean
+    highlight: tango
+    toc: true
+    toc_float:
+      collapsed: true
+      smooth_scroll: true
+    number_sections: true
+    code_folding: hide
+---
+
+
+```{r knitrGlobalOpt}
+#knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set(dev='CairoPNG')
+```
+# Loading required packages
+
+```{r loadPackages}
+suppressPackageStartupMessages(library("dplyr"))
+suppressPackageStartupMessages(library("reshape2"))
+suppressPackageStartupMessages(library("ggplot2"))
+suppressPackageStartupMessages(library("ComplexHeatmap"))
+suppressPackageStartupMessages(library("RColorBrewer"))
+suppressPackageStartupMessages(library("DT"))
+suppressPackageStartupMessages(library("GenomicAlignments"))
+suppressPackageStartupMessages(library("GenomicFeatures"))
+suppressPackageStartupMessages(library("Rsamtools"))
+suppressPackageStartupMessages(library("rtracklayer"))
+suppressPackageStartupMessages(library("Cairo"))
+#suppressPackageStartupMessages(library("here"))
+#capabilities()
+options(bitmapType='cairo')
+```
+
+
+```{r parameters}
+# #############   INITIAL TESTING  ################
+
+#path = dirname(getwd())
+
+# # NOT PARAMETERS, USED TO BUILD PARAMETER PATHS FOR TESTING
+#outDirSStack <- paste0(path,"/","output/4_ShortStack_bamMerged/MOCK")
+#outDir <- paste0(path,"/","output/4_ShortStack_Analysis/MOCK")
+
+###################################################
+
+# Getting parameters values from call to rmarkdown::render fonction.
+
+outDirSStack <- snakemake@params$outDirSStack
+outDir <- snakemake@params$outDir
+gffFile <- snakemake@input$new_gff3
+resultsFile <- snakemake@input$resultsFile
+```
+
+```{r setup, include=FALSE, echo=FALSE}
+system(command = paste0("mkdir -p ",outDir))
+knitr::opts_knit$set(root.dir = outDir)
+
+```
+
+# Reporting on run parameters
+```{r run_param_report}
+ls.str()
+```
+
+
+# Short Stack log file
+
+```{r shortStackLogFileDisplay}
+sstackLog <- readLines(file.path(outDirSStack, "Log.txt"))
+cat(sstackLog, sep = "\n")
+```
+
+# Load content of Short Stack Results files
+
+```{r}
+# Load content of files
+clustersGR <- rtracklayer::import.gff3(gffFile)
+
+clustersInfo <- read.table(file = resultsFile,
+                           sep = "\t",
+                           header = TRUE,
+                           comment.char = "",
+                           row.names = NULL,
+                           stringsAsFactors = FALSE)
+
+# Verify that cluster IDs corresponds between the two files
+if (!all(clustersGR$ID ==clustersInfo$Name)) stop("Cluster lists of cluster IDs in gff and Results.txt file do not match!! ")
+```
+
+
+
+# Summary of data in the Results.txt file
+
+## Description of the statistics computed by ShortStack
+
+This is a section of the [README file](https://github.com/MikeAxtell/ShortStack)
+
+1. Locus: Coordinates of the locus in format Chr:Start-Stop 
+2. Name: Name of the locus 
+3. Length: Length of the locus (nts) 
+4. Reads: Total number of primary alignments in the locus 
+5. RPM: Total number of primary alignments normalized to reads per million. Note the the normalization factor includes all primary alignments .. both mapped and unmapped. 
+6. UniqueReads: Number of uniquely aligned primary alignments in locus. 
+7. FracTop: Fraction of primary alignments aligned to the top genomic strand 
+8. Strand: Strand call for the locus 
+9. MajorRNA: Most abundant RNA at locus. In cases of tie, MajorRNA is arbitrarily chosen from the tied entries. 
+10. MajorRNAReads: Number of primary alignments for the MajorRNA. 
+11. Complexity: A number >0 and <= 1 that reflects the complexity of small RNA production from the locus. Defined by (n_distinct_read_sequences) / (abundance of all reads). Lower numbers indicate loci that are more dominated by a single highly abundant RNA. 
+12. DicerCall: If >= 80% of the primary alignments were reads >= dicermin and <= dicermax, DicerCall is a number that indicates the predominant size of the RNA population from the locus. If the 80% threshold was not met, then DicerCall is N instead. Can also be NA if the locus had no aligned reads. 
+13. MIRNA: Results of MIRNA analysis. Codes starting with N indicate not a MIRNA, Y means yes. See above for full description of codes.
+14. PhaseScore: Phasing score for a phase size of 21 or 24nts according to a modified version of equation 3 of Guo et al (2015) doi:10.1093/bioinformatics/btu628. If the locus had a DicerCall of 21, phase score is for a 21 nt phasing register. If the locus had a DicerCall of 24, the phase score is for a 24 nt phasing register. See above for full description of phasing analysis.
+15. Short: Number of primary alignments that were shorter than --dicermin 
+16. Long: Number of primary alignments that were longer than --dicermax 
+17-end: Number of primary alignments of the indicated RNA size. 
+
+```{r ResultsTableFeatures}
+summary(clustersInfo)
+
+str(clustersInfo)
+```
+
+
+Displaying only the first 50 rows of the Results.txt table:
+```{r ResultsTableDisplay}
+DT::datatable(head(clustersInfo, 50))
+```
+
+
+
+
+# Histogram of locus length
+```{r locusLengthHistogram}
+Length <- clustersInfo$Length
+ylim <- c(0,1) * quantile(Length, probs=0.99, na.rm=TRUE)
+Length <- data.frame(Length = pmin(ylim[2], Length))
+
+ggplot(Length, aes(x = Length)) +
+  geom_histogram(binwidth = 10, fill = "steelblue", colour = "grey") +
+  ylab("count of clusters") +
+  xlab("Cluster length (bp)") +
+  scale_x_continuous(breaks=seq(ylim[1], ylim[2], by = 200), minor_breaks = seq(ylim[1], ylim[2], by = 50)) +
+  theme(axis.text = element_text( size = 11 ),
+        axis.text.x = element_text( size = 11, angle = 50, vjust = 0.5, hjust = 0),
+        axis.title = element_text( size = 11, face = "bold" ))
+```
+
+Plotting only the 99% quantile which is `r ylim[2]`. Loci with a size above this treshold are ploted as having a size corresponding to this value.
+
+# Histogram of overall read counts
+```{r}
+Reads <- clustersInfo$Reads
+ylim <- c(0,1) * quantile(Reads, probs=0.95, na.rm=TRUE)
+Reads <- data.frame(Reads = pmin(ylim[2], Reads))
+
+ggplot(Reads, aes(x = Reads)) +
+  geom_histogram(bins = 40, fill = "orangered", colour = "grey") +
+  ylab("Count of clusters") +
+  xlab("Count of reads on cluster") +
+  scale_x_continuous(breaks=seq(ylim[1], ylim[2], by = ceiling(ylim[2]/10)), minor_breaks = seq(ylim[1], ylim[2], by = ceiling(ylim[2]/20))) +
+  theme(axis.text = element_text( size = 11 ),
+        axis.text.x = element_text( size = 11 ),
+        axis.title = element_text( size = 11, face = "bold" ))
+```
+
+Plotting only the 95% quantile which is `r ylim[2]`. Loci with a count of reads above this treshold are ploted as having a count corresponding to this value.
+
+
+# Histogram of overall RPM values
+```{r}
+RPM <- clustersInfo$RPM
+ylim <- c(0,1) * quantile(RPM, probs=0.95, na.rm=TRUE)
+RPM <- data.frame(RPM = pmin(ylim[2], RPM))
+
+ggplot(RPM, aes(x = RPM)) +
+  geom_histogram(bins = 40, fill = "firebrick", colour = "grey") +
+  ylab("Count of clusters") +
+  xlab("RPM value") +
+  scale_x_continuous(breaks=seq(ylim[1], ylim[2], by = round(ylim[2]/10, 2)), minor_breaks = seq(ylim[1], ylim[2], by = round(ylim[2]/20, 2))) +
+  theme(axis.text = element_text( size = 11 ),
+        axis.text.x = element_text( size = 11 ),
+        axis.title = element_text( size = 11, face = "bold" ))
+```
+
+Plotting only the 95% quantile which is `r ylim[2]`. Loci with a count of reads above this treshold are ploted as having a count corresponding to this value.
+
+
+
+
+
+# Distribution of DicerCall
+
+```{r, dicerCallPlot, fig.width=5}
+clustersInfo$isMIRNA <- factor(ifelse(clustersInfo$MIRNA == "Y", "Predicted_MIRNAs", "Others"))
+
+ggplot(clustersInfo, aes(x = DicerCall)) +
+  geom_bar(aes(fill = isMIRNA), colour = "whitesmoke") +
+  ylab("Count of clusters") +
+  xlab("DicerCall classification") +
+  facet_grid(rows = vars(isMIRNA), scales = "free", margins = FALSE) +
+  theme(axis.text = element_text( size = 11 ),
+        axis.text.x = element_text( size = 11 ),
+        axis.title = element_text( size = 11, face = "bold" ),
+        legend.position = "none")
+```
+
+
+# Distribution of MIRNA inferrence status
+
+Out of a total of `r (denom <- length(clustersInfo$MIRNA))` identified clusters, Shortstack classified `r (num <- sum(clustersInfo$MIRNA == "Y"))` of them (`r num/denom*100`%) as MIRNA.
+
+```{r mirnaInferrencePlot, fig.height= 6, fig.width=5}
+ggplot(clustersInfo, aes(x = MIRNA)) +
+  geom_bar(fill = "deeppink", colour = "whitesmoke") +
+  ylab("Count of clusters") +
+  xlab("MIRNA classification") +
+  facet_grid(rows = vars(DicerCall), scales = "free_y", margins = TRUE) +
+  theme(axis.text = element_text( size = 11 ),
+        axis.text.x = element_text( size = 11 ),
+        axis.title = element_text( size = 11, face = "bold" ))
+```
+
+**MIRNA analysis codes:**
+
+
+- N0: not analyzed due to run in --nohp mode. 
+- N1: no reads at all aligned in locus 
+- N2: DicerCall was invalid (< 80% of reads in the Dicer size range defined by --dicermin and --dicermax). 
+- N3: Major RNA abundance was less than 2 reads. 
+- N4: Major RNA length is not in the Dicer size range defined by --dicermin and --dicermax. 
+- N5: Locus size is > than maximum allowed for RNA folding per option --foldsize (default is 300 nts). 
+- N6: Locus is not stranded (>20% and <80% of reads aligned to top strand) 
+- N7: RNA folding attempt failed at locus (if occurs, possible bug?) 
+- N8: Strand of possible mature miRNA is opposite to that of the locus 
+- N9: Retrieval of possible mature miRNA position failed (if occurs, possible bug?) 
+- N10: General failure to compute miRNA-star position (if occurs, possible bug?) 
+- N11: Possible mature miRNA had > 5 unpaired bases in predicted precursor secondary structure. 
+- N12: Possible mature miRNA was not contained in a single predicted hairpin 
+- N13: Possible miRNA/miRNA* duplex had >2 bulges and/or >3 bulged nts 
+- N14: Imprecise processing: Reads for possible miRNA, miRNA-star, and their 3p variants added up to less than 50% of the total reads at the locus. 
+- N15: Maybe. Passed all tests EXCEPT that the miRNA-star was not sequenced. INSUFFICIENT evidence to support a de novo annotation of a new miRNA family. 
+- Y: Yes. Passed all tests INCLUDING sequencing of the exact miRNA-star. Can support a de novo annotation of a new miRNA family. 
+
+
+# Shortstack loci found to overlap with Mirbase MIRNA
+
+```{r experimentalClusterOverlapWithMIRNA1}
+# ShortStack clusters that overlap with an annotated MIRNA
+expMirnaInfo <- as.data.frame(mcols(clustersGR))
+```
+
+
+```{r experimentalClusterOverlapWithMIRNA2, eval= "pri_miRNA" %in% colnames(expMirnaInfo)}
+expMirnaInfo <- expMirnaInfo[!is.na(expMirnaInfo$pri_miRNA), ]
+nXpmirna <- nrow(expMirnaInfo)
+
+denom <- length(clustersGR)
+
+cat("Out of a total of", denom,  "identified clusters,", nXpmirna, "of them (", nXpmirna/denom*100, "%) overlap with an annotated MIRNA locus.\n", sep = " ")
+
+```
+
+
+```{r annotatedMIRNAPlot, fig.height= 6, fig.width=4, eval= "pri_miRNA" %in% colnames(expMirnaInfo) && as.logical(nXpmirna)}
+ggplot(expMirnaInfo, aes(x = MIRNA)) +
+  geom_bar(fill = "orange1", colour = "whitesmoke") +
+  ylab("Count of clusters") +
+  xlab("MIRNA classification") +
+  facet_grid(rows = vars(DicerCall), scales = "free_y", margins = TRUE) +
+  theme(axis.text = element_text( size = 11 ),
+        axis.text.x = element_text( size = 11 ),
+        axis.title = element_text( size = 11, face = "bold" ))
+```
+
+
+Displaying only the info on the experimental clusters overlapping with annotated MIRNA:
+
+```{r MIRANResultsTableDisplay, eval= "pri_miRNA" %in% colnames(expMirnaInfo) && as.logical(nXpmirna)}
+DT::datatable(expMirnaInfo)
+```
+
+
+# Reporting on R session info
+```{r}
+sessionInfo()
+```
+
+
+
+

@@ -1,0 +1,44 @@
+# Master sRNA_pipeline configuration file template
+# ------------------------------------------
+
+####################
+# Input output data options
+'DATA':
+    'directories':
+        'fastq_dir': "/data/projects/rymv_xantho_smallrna/pipeline_srnas/DATA2/fastq/"       # samples dir with fastq
+        'references_dir': "/data/projects/rymv_xantho_smallrna/pipeline_srnas/DATA2/ref/"       # references dir
+        'out_dir': "/data/projects/rymv_xantho_smallrna/pipeline_srnas/output10rpm/"       # Out directory
+        'annotation': "/data/projects/rymv_xantho_smallrna/pipeline_srnas/DATA2/annotation/"
+    'fasta_suffix': 'fasta'                                # file termination
+    'files':
+        'miRNA_gff' : '/data/projects/rymv_xantho_smallrna/pipeline_srnas/DATA2/annotation/miRBase_MSU7_MIR.gff3'
+        'sample_info': "/data/projects/rymv_xantho_smallrna/pipeline_srnas/DATA2/sample_info.txt"
+    #    'directories':
+    #        'fastq_dir': "/home/comte/Documents/IPME/EAVIR/PetitsARN/snakemake_sRNAmapping/DATA2/fastq/"       # samples dir with fastq
+    #        'references_dir': "/home/comte/Documents/IPME/EAVIR/PetitsARN/snakemake_sRNAmapping/DATA2/ref/"       # references dir
+    #        'out_dir': "/home/comte/Documents/IPME/EAVIR/PetitsARN/snakemake_sRNAmapping/output10rpm/"       # Out directory
+    #        'annotation': "/home/comte/Documents/IPME/EAVIR/PetitsARN/snakemake_sRNAmapping/DATA2/annotation/"
+    #    'fasta_suffix': 'fasta'                                # file termination
+    #    'files':
+    #        'miRNA_gff': '/home/comte/Documents/IPME/EAVIR/PetitsARN/snakemake_sRNAmapping/DATA2/annotation/miRBase_MSU7_MIR.gff3'
+    #        'sample_info': "/home/comte/Documents/IPME/EAVIR/PetitsARN/snakemake_sRNAmapping/DATA2/sample_info.txt"
+#NASID: "NAS2"
+
+################################
+# Params for tools:
+PARAMS:
+    FASTP:
+        options: "" # Carefull ! Quality trimming and adaptater removal is enabled by default.
+    SHORTSTACK:
+        dicermin: 20
+        dicermax: 24
+        mincov: 10rpm
+        pad: 75
+        foldsize: 300
+        strand_cutoff: 0.8
+
+##############################
+# Location of various software
+
+SINGULARITY:
+    "MAIN": "Containers/Singularity.R.simg"

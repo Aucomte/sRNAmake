@@ -1,0 +1,37 @@
+__default__:
+    threads: 1
+    scheduler : "qsub"
+    n_cpu: "-pe parallel_smp {threads}"
+    mem: "-l mem_free=4G"
+    export_env: "-V"
+    cwd: "-cwd"
+    logerror: "-e {log.error}.cluster"
+    log: "-o {log.output}.cluster"
+    queue: "-q normal.q"
+
+bwa_index:
+    queue: "-q short.q"
+bwa_aln:
+    threads: 6
+bwa_samse_sort_bam:
+    threads: 6
+samtools_merge:
+    threads: 6
+get_libary_sizes_RNA:
+    mem: "-l mem_free=10G"
+merge_CSV_files:
+    queue: "-q short.q"
+filter_BAM_files:
+    mem: "-l mem_free=8G"
+count_on_BAM:
+    mem: "-l mem_free=10G"
+merge_resume:
+    queue: "-q short.q"
+plot_barPlot:
+    mem: "-l mem_free=40G"
+    queue: "-q short.q"
+plot_barPlot_scale:
+    mem: "-l mem_free=40G"
+    queue: "-q short.q"
+merge_plot:
+    queue: "-q short.q"

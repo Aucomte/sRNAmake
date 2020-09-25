@@ -1,0 +1,47 @@
+__default__:
+    cpus-per-task : 2
+    ntasks : 1
+    mem-per-cpu : '4'
+    partition : "normal"
+    output : 'logs/stdout/{rule}/{wildcards}'
+    error : 'logs/error/{rule}/{wildcards}'
+
+bwa_index:
+    ntasks : 1
+    cpus-per-task : 4
+    mem-per-cpu : '4'
+    partition : "normal"
+    output : 'logs/stdout/{rule}/{wildcards}'
+    error : 'logs/error/{rule}/{wildcards}'
+
+run_mapping:
+    ntasks : 1
+    cpus-per-task : 4
+    mem-per-cpu : '4'
+    partition : "normal"
+    output : 'logs/stdout/{rule}/{wildcards}'
+    error : 'logs/error/{rule}/{wildcards}'
+
+samtools_stats:
+    ntasks : 1
+    cpus-per-task : 4
+    mem-per-cpu : '3'
+    partition : "normal"
+    output : 'logs/stdout/{rule}/{wildcards}'
+    error : 'logs/error/{rule}/{wildcards}'
+
+samtools_merge_treatment:
+    ntasks : 1
+    cpus-per-task : 6
+    mem-per-cpu : '3'
+    partition : "normal"
+    output : 'logs/stdout/{rule}/{wildcards}'
+    error : 'logs/error/{rule}/{wildcards}'
+
+samtools_merge:
+    ntasks : 1
+    cpus-per-task : 6
+    mem-per-cpu : '3'
+    partition : "normal"
+    output : 'logs/stdout/{rule}/{wildcards}'
+    error : 'logs/error/{rule}/{wildcards}'
