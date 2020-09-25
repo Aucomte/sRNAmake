@@ -45,3 +45,11 @@ samtools_merge:
     partition : "normal"
     output : 'logs/stdout/{rule}/{wildcards}'
     error : 'logs/error/{rule}/{wildcards}'
+
+diff_exp_analysis:
+    ntasks: 1
+    cpus-per-task: 6
+    mem-per-cpu: '6'
+    partition: "highmem"
+    output: 'logs/stdout/{rule}/{wildcards}'
+    error: 'logs/error/{rule}/{wildcards}'
