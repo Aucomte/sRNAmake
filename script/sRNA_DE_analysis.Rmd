@@ -130,8 +130,12 @@ source(file = accessoryFuncFile)
   cat("bye bye...\n")
 }
 
-if (!"SARTools" %in% installed.packages()[, "Package"]) {devtools::install_github("PF2-pasteur-fr/SARTools", build_opts="--no-resave-data",
-                                                                                  dependencies = TRUE, upgrade = FALSE)}
+if (!"SARTools" %in% installed.packages()[, "Package"]) {
+  devtools::install_github("PF2-pasteur-fr/SARTools", build_opts="--no-resave-data",
+                           dependencies = TRUE, upgrade = FALSE,
+                           lib = grep(Sys.getenv("LOGNAME"), .libPaths(), value = TRUE)
+  )
+}
 myLoadInstall(necessaryPackages)
 
 ```
