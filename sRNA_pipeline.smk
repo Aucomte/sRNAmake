@@ -210,7 +210,8 @@ rule run_Fastqc:
     shell:
          """
          fastqc -o {out_dir}0_fastqc -t {threads} {input.fastq}
-         mv "{out_dir}0_fastqc"/${{bamFileName%%.*}}_fastqc.html {output.html_fastqc}
+         infilename=$(basename {input.fastq})
+         mv "{out_dir}0_fastqc"/${{infilename%%.*}}_fastqc.html {output.html_fastqc}
          """
 
 

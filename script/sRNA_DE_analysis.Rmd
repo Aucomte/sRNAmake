@@ -133,7 +133,7 @@ source(file = accessoryFuncFile)
 if (!"SARTools" %in% installed.packages()[, "Package"]) {
   devtools::install_github("PF2-pasteur-fr/SARTools", build_opts="--no-resave-data",
                            dependencies = TRUE, upgrade = FALSE,
-                           lib = grep(Sys.getenv("LOGNAME"), .libPaths(), value = TRUE)
+                           lib = Sys.getenv("R_LIBS_USER") #grep(Sys.getenv("LOGNAME"), .libPaths(), value = TRUE)
   )
 }
 myLoadInstall(necessaryPackages)
