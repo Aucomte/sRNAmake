@@ -624,8 +624,8 @@ rule diff_exp_analysis:
         sRNA_loci_annot_file = rules.shortStack_populateGFF.output.new_gff3
     params:
         outDir = lambda w, output: os.path.dirname(output.html_output),
-        de_comparisons_file = config["files"]["de_comparisons_file"],
-        filter_gff = config["files"]["filter_gff"],
+        de_comparisons_file = config["DATA"]["files"]["de_comparisons_file"],
+        filter_gff = config["DATA"]["files"]["filter_gff"],
         minRowSumTreshold = config["PARAMS"]["DE_ANALYSIS"]["minRowSumTreshold"],
         variableOfInterest = config["PARAMS"]["DE_ANALYSIS"]["variableOfInterest"],
         batch = config["PARAMS"]["DE_ANALYSIS"]["batch"],
