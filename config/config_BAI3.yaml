@@ -21,7 +21,7 @@
 # Params for tools:
 PARAMS:
     FASTP:
-        options: "" # Carefull ! Quality trimming and adaptater removal is enabled by default.
+        options: "--overrepresentation_sampling --length_required 18 --length_limit 0" # Carefull ! Quality trimming and adaptater removal is enabled by default.
     SHORTSTACK:
         dicermin: 20
         dicermax: 24

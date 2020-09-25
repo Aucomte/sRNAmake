@@ -118,8 +118,8 @@ def final_return(wildcards):
 
 #*###############################################################################
 
-## I AM NOT SURE WE NEED THAT? BECAUSE OF THIS THE ANNOTATION FILES (WHICH MUST BE GTF, WHY?) NEED
-## ALSO TO HAVE THE SAME NAME PREFIX, IS IT REALLY DESIRABLE?
+## ??????????  I AM NOT SURE WE NEED THAT? BECAUSE OF THIS THE ANNOTATION FILES (WHICH MUST BE GTF, WHY?) NEED
+## ??????????  ALSO TO HAVE THE SAME NAME PREFIX, IS IT REALLY DESIRABLE?
 REFERENCES, = glob_wildcards(f"{references_dir}{{references}}.{suffix_file}", followlinks=True)
 
 def unique(list1):
@@ -155,6 +155,11 @@ for key in samples:
     if key[0] == "samplename":
         fastq_name.append(samples[key])
 TREATMENT = unique(list(treatments))
+
+## ????????? DO WE WANT TO RENAME THIS variable/wildcard TO SAMPLE_NAME?
+## ????????? IDEALLY WOULD NEED TO CHECK THAT NONE OF THE VALUES OF samplename
+## ????????? IN sampleInfo FILE ARE DUPLICATED BECAUSE THIS IS AN IMPLICIT
+## ????????? ASSUMPTION AND IF IT HAPPENED IT WOULD BREAK THE PIPELINE
 FASTQ_NAME = unique(list(fastq_name))
 
 ################################
@@ -221,6 +226,7 @@ rule run_fastp:
     """
         fastp on reads
     """
+    threads: get_threads("run_fastp", 1)
     input:
         fastq = get_fastq
     params:
@@ -234,7 +240,7 @@ rule run_fastp:
         "envs/quality.yaml"
     shell:
         """
-            fastp -i {input.fastq} -o {output.fastq_trimmed} -h {output.output_html} {params.options}
+            fastp --thread {threads} -i {input.fastq} -o {output.fastq_trimmed} -h {output.output_html} {params.options}
         """
 
 rule multiqc_fastp:
@@ -383,13 +389,13 @@ rule run_mapping:
     conda:
             "envs/bam_treatment.yaml"
     shell:
-            f"""
+            """
                 # Align reads to reference genome:
-                bwa aln -t {{threads}} {{input.reference}} {{input.fastq}} > {{output.sai_file}} 2>>{{log.error}}
-                bwa samse -n 5 {{input.reference}} {{output.sai_file}} {{input.fastq}} > {{output.sam_file}} 2>>{{log.error}}
-                samtools view -bSh -o {{output.bam_file}} {{output.sam_file}} 1>>{{log.output}} 2>>{{log.error}}
-                samtools sort --threads {{threads}} -o {{output.sorted_bam_file}} {{output.bam_file}} 1>>{{log.output}} 2>>{{log.error}}
-                samtools index {{output.sorted_bam_file}} 1>>{{log.output}} 2>>{{log.error}}
+                bwa aln -t {threads} {input.reference} {input.fastq} > {output.sai_file} 2>>{log.error}
+                bwa samse -n 5 {input.reference} {output.sai_file} {input.fastq} > {output.sam_file} 2>>{log.error}
+                samtools view -bSh -o {output.bam_file} {output.sam_file} 1>>{log.output} 2>>{log.error}
+                samtools sort --threads {threads} -o {output.sorted_bam_file} {output.bam_file} 1>>{log.output} 2>>{log.error}
+                samtools index {output.sorted_bam_file} 1>>{log.output} 2>>{log.error}
             """
 
 rule generate_bamfile_info:
@@ -661,3 +667,6 @@ rule diff_exp_analysis:
         # virer le slash à la fin des nom de dossiers
         # corriger le check_configfile
         # faire le fileinfo pour les fastq trimmés avec fastp
+        # ???? Could the f strings in the shell blocks be the cause of the problem with {threads}?
+        # trim parameter in config for the user to decide if trimming should be executed?
+        # Logs: I believe it is more desirable to have both stdout and stderr in the same file, could use the trick employed in baseDmux to simplify coding
