@@ -186,6 +186,11 @@ rule final:
 
 # -------------  0 QC:
 
+
+## PROBLEM: snakemake expects "0_fastqc/GXY-16_fastqc.html"
+## The file is written but with this name: /0_fastqc/GXY-16_trimAR_fastqc.html
+## I hope there is an optin in fastqc enabling to change the name of the output file..
+
 rule run_Fastqc:
     """
         QC of fastq files
@@ -205,6 +210,7 @@ rule run_Fastqc:
     shell:
          """
          fastqc -o {out_dir}0_fastqc -t {threads} {input.fastq}
+         mv "{out_dir}0_fastqc"/$(basename {input.fastq}) {output.html_fastqc}
          """
 
 rule multiqc_fastqc:
@@ -634,7 +640,7 @@ rule diff_exp_analysis:
         genome_annotation_file = rules.cat_gtf.output.cat_gtf,
         sRNA_loci_annot_file = rules.shortStack_populateGFF.output.new_gff3
     params:
-        outDir = lambda w, output: os.path.dirname(output.html_output),
+        out_dir = lambda w, output: os.path.dirname(output.html_output),
         de_comparisons_file = config["DATA"]["files"]["de_comparisons_file"],
         filter_gff = config["DATA"]["files"]["filter_gff"],
         minRowSumTreshold = config["PARAMS"]["DE_ANALYSIS"]["minRowSumTreshold"],
