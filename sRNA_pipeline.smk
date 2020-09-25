@@ -210,8 +210,11 @@ rule run_Fastqc:
     shell:
          """
          fastqc -o {out_dir}0_fastqc -t {threads} {input.fastq}
-         mv "{out_dir}0_fastqc"/$(basename {input.fastq}) {output.html_fastqc}
+         mv "{out_dir}0_fastqc"/${{bamFileName%%.*}}_fastqc.html {output.html_fastqc}
          """
+
+
+
 
 rule multiqc_fastqc:
     """
