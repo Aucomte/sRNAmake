@@ -118,6 +118,8 @@ def final_return(wildcards):
 
 #*###############################################################################
 
+## I AM NOT SURE WE NEED THAT? BECAUSE OF THIS THE ANNOTATION FILES (WHICH MUST BE GTF, WHY?) NEED
+## ALSO TO HAVE THE SAME NAME PREFIX, IS IT REALLY DESIRABLE?
 REFERENCES, = glob_wildcards(f"{references_dir}{{references}}.{suffix_file}", followlinks=True)
 
 def unique(list1):
@@ -339,6 +341,9 @@ rule bwa_index:
             """
 
 ###########
+
+## THIS IS STILL HOOKED TO THE INITIAL FASTQs NOT THE FASTP ONES
+## DELIBERATE?
 
 rule run_mapping:
     """
