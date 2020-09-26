@@ -64,6 +64,36 @@ knitr::opts_chunk$set(dev='CairoPNG')
 #typeTrans <- "rlog"
 ##################################################################################
 
+
+# #############   INITIAL TESTING  ################
+sampleInfoBamFiles <- "/data/projects/rymv_xantho_smallrna/seb/bai3_dataset_output/2_mapping_sRNA/bamfile_info.txt"
+genomeGffFile <- "/data/projects/rymv_xantho_smallrna/seb/bai3_dataset_output/1_cat_gtf/all_gtf.gtf"
+genomeFastaFile <- "/data/projects/rymv_xantho_smallrna/seb/bai3_dataset_output/1_cat_ref/all_ref.fa"
+sstackGffFile <- "/data/projects/rymv_xantho_smallrna/seb/bai3_dataset_output/4_ShortStack/ShortStack_All_miRNA.gff3"
+ncores <- 6 # snakemake@threads
+outDir <- "/data/projects/rymv_xantho_smallrna/seb/bai3_dataset_output/5_sRNA_loci_DE_analysis"
+invisible(dir.exists(outDir) || dir.create(path = outDir, mode = "770"))
+comparisonsFile <- "/data3/projects/pixies/scripts/treatmentsComparisons_2012.csv"
+filterGffFile <- "/data3/projects/pixies/reference_genomic_data/NB_genome/Oryza_sativa_genomic_refseq_IRGSP_seqlevels.gff3"
+# feature filtering based on total read counts
+minRowSumTreshold <- 30 # snakemake@params[["minRowSumTreshold"]]
+# DESeq2 fonctions parameters values
+variableOfInterest <- "Treatment"
+batch <- "Experiment"
+locfunc <- "shorth" # "median" #
+fitType <- "parametric"
+sizeFactEstimMethod <- "iterate" # "ratio" # "poscounts"
+pAdjustMethod <- "BH"
+cooksCutoff <- TRUE #! as.logical
+independentFiltering <- FALSE #! as.logical
+lfcThreshold <- 2 #! as.numeric
+altHypothesis <- "greaterAbs"
+alpha <- 0.05 #! as.numeric
+# DESeq2 VSR transformation method
+typeTrans <- "rlog"
+#################################################################################
+
+
 ##################### LOADING PARAMS FROM SNAKEMAKE OBJECT ######################
 sampleInfoBamFiles <- snakemake@input[["bam_files_info_file"]]
 genomeGffFile <- snakemake@input[["genome_annotation_file"]]
@@ -239,15 +269,9 @@ NOTE: seqinfo information for all objects is set to the same info provided in th
 
 ### Reference genome annotation and sequence (most likely rice)
 ```{r refGenomeAnnot}
-genomeAnnotGR <- rtracklayer::import(genomeGffFile)
-newsi <- GenomeInfoDb::merge(chrominfo, seqinfo(genomeAnnotGR))
-seqinfo(genomeAnnotGR, new2old = match(seqnames(newsi), seqlevels(genomeAnnotGR))) <- newsi
-refGenes <- genomeAnnotGR[genomeAnnotGR$type == "gene"]
-names(refGenes) <- refGenes$Name
-
-genomeAnnotDB <- makeTxDbFromGFF(genomeGffFile, format="gff3", chrominfo = chrominfo )
+genomeAnnotDB <- makeTxDbFromGFF(genomeGffFile, chrominfo = chrominfo )
+refGenes <- GenomicFeatures::genes(genomeAnnotDB)
 simplifiedRefTx <- reduce(exonsBy(genomeAnnotDB, by = "gene"))
-
 refGenomeSeq <-FaFile(genomeFastaFile)
 ```
 
@@ -267,41 +291,22 @@ Finding regions that accumulate a number of reads in any of the libraries that i
   mcols(sRnaClusters)$id <- names(sRnaClusters)
 ```
 
-### Previously annotated reference xisRNAs
-
-**May want to omit this step**
-
-```{r instanciateXisrnaGR}
-# Load xisRNA info table
-xisrna <- read.csv2(xisrnaBai3File, stringsAsFactors = FALSE)
-str(xisrna)
-# Create a GRanges containning all the info from the file.
-xisrnaGR <- GBrowser2GRanges(as.character(xisrna$locationMSU7))
-names(xisrnaGR) <- as.character(xisrna$xisRNAID)
-seqinfo(xisrnaGR) <- merge(seqinfo(xisrnaGR), chrominfo)
-mcols(xisrnaGR) <- xisrna[, c(-1, -2)]
-```
 
 ### Recording overlap between candidate  sRNA loci (genome segments) and genomic features of interest
 
 Find overlap with annotated genes
+
+**!! THIS LINE BELOW CAN BREAK EVERYTHING IF GTF DOES NOT HAVE THE CORRESPONDING COLS!!!! **
+
+
 ```{r}
-sRnaClusters <- addRefAnnot(querGR = sRnaClusters, refGR = refGenes, mcolsToKeep = c("Note"), prefix = "OlapGene_")
+sRnaClusters <- addRefAnnot(querGR = sRnaClusters, refGR = refGenes,  mcolsToKeep = "gene_id", prefix = "OlapGene_")
 ```
 
 Find overlap with annotated 'simplified' trancripts 
 
 ```{r}
 sRnaClusters <- addRefAnnot(querGR = sRnaClusters, refGR = simplifiedRefTx , prefix = "OlapSimpleTrx_")
-```
-
-
-
-**DELETE**  
-Find Diff accumul sRNA loci that overlap with xisRNA clusters
-
-```{r, eval = FALSE}
-sRnaClusters <- addRefAnnot(querGR = sRnaClusters, refGR = xisrnaGR, mcolsToKeep = c("Group", "Family", "Subfamily"), prefix = "OlapXisRNA_")
 ```
 
 
@@ -343,15 +348,14 @@ bamTag(qcBamParam)  <- c("NM", "AS", "X0", "XT","XA")
 galnList <- bplapply(bamList, readGAlignments, param=qcBamParam, BPPARAM = parallelBackEnd)
 # SHOULD TRY TO //ize that:
 readMapQual <- data.frame()
-	for (i in 1:length(galnList)) {
-		if (!length(galnList[[i]]) == 0) { 
-			table <- cbind(
-			  as.data.frame(mcols(galnList[[i]])),
-				sample = names(galnList)[i]
-				)
-			readMapQual <- rbind(readMapQual, table)
-		}
-	}
+    for (i in 1:length(galnList)) {
+        if (!length(galnList[[i]]) == 0) {
+            table <- cbind(
+              as.data.frame(mcols(galnList[[i]])),
+              sample = names(galnList)[i]
+            )
+          readMapQual <- rbind(readMapQual, table) }
+    }
 yieldSize(bamList) <- NA
 #write.csv(readMapQual, file = "QC_readMapQual.csv")
 
@@ -519,10 +523,11 @@ https://github.com/PF2-pasteur-fr/SARTools/blob/master/R/majSequences.R
 Here is some info about loci that have the highest counts of mapped reads:
 ```{r, fig.width=10, fig.height=10}
 df <- cbind(
-as.data.frame(mcols(addRefAnnot(querGR = sRnaClusters[row.names(majFeatures)], refGR = refGenes, mcolsToKeep = c("Note"), prefix = "OlapGene_"))),
+as.data.frame(mcols(sRnaClusters[row.names(majFeatures)])),
 majFeatures)
 DT::datatable(df)
 ```
+
 
 Values in the last columns titled with the name of the samples contains the the percentage of reads captures by the corresponding feature in the corresponding library. 
 

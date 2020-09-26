@@ -639,7 +639,6 @@ rule diff_exp_analysis:
     threads: get_threads('diff_exp_analysis', 4)
     input:
         bam_files_info_file = rules.generate_bamfile_info.output.out_file,
-        new_gff3 = rules.shortStack_populateGFF.output.new_gff3,
         genome_sequence_file = rules.cat_fasta.output.cat_ref,
         genome_annotation_file = rules.cat_gtf.output.cat_gtf,
         sRNA_loci_annot_file = rules.shortStack_populateGFF.output.new_gff3
