@@ -101,9 +101,22 @@ accessoryFuncFile <- file.path(normalizePath(path = "./script", mustWork = TRUE)
 
 ## Loading required packages and function definitions
 
-```{r loadPackages}
+```{r install and load R packages and functions}
+source(file = accessoryFuncFile)
+
+.Last <- function() {
+  cat("Now saving current session to output dir:", outDir, "\n")
+  save.image(file = file.path(outDir, "session.RData"), compress = TRUE)
+  cat("bye bye...\n")
+}
+
+userLibPath <- normalizePath(Sys.getenv("R_LIBS_USER"))
+if(!file.exists(userLibPath)) {
+  warning("Creating the R library installation directory:", userLibPath, "\n")
+  dir.create(userLibPath, recursive = TRUE)
+}
+
 necessaryPackages <- c(
-  "parallel",
   "dplyr", "readr", "reshape2", "ggplot2", "fs",
   "ggplot2", 
   "ComplexHeatmap",
@@ -119,24 +132,16 @@ necessaryPackages <- c(
   "Cairo"
 )
 
-
-#options(bitmapType='cairo')
-
-source(file = accessoryFuncFile)
-
-.Last <- function() {
-  cat("Now saving current session to output dir:", outDir, "\n")
-  save.image(file = file.path(outDir, "session.RData"), compress = TRUE)
-  cat("bye bye...\n")
-}
-
-if (!"SARTools" %in% installed.packages()[, "Package"]) {
+if (!"SARTools" %in% installed.packages(lib.loc = userLibPath)[, "Package"]) {
+  warning("The SARTools package is unavailable and will be installed in:\n", userLibPath, "\n")
   devtools::install_github("PF2-pasteur-fr/SARTools", build_opts="--no-resave-data",
                            dependencies = TRUE, upgrade = FALSE,
-                           lib = Sys.getenv("R_LIBS_USER") #grep(Sys.getenv("LOGNAME"), .libPaths(), value = TRUE)
+                           lib = userLibPath
   )
 }
-myLoadInstall(necessaryPackages)
+myLoadInstall(necessaryPackages, lib = userLibPath)
+
+#options(bitmapType='cairo')
 
 ```
 

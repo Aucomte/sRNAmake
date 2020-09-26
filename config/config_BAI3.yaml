@@ -49,6 +49,6 @@ PARAMS:
 
 
 SINGULARITY:
-    "MAIN" : "/data/projects/rymv_xantho_smallrna/pipeline_srnas/Containers/Singularity.R.simg"
+    "MAIN" : "/data/projects/rymv_xantho_smallrna/seb/srnapipe.main.simg"
 
 

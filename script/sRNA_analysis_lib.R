@@ -1,27 +1,34 @@
 
 
 
-myLoadInstall <- function(packageNames) {
+myLoadInstall <- function(packageNames, lib) {
   if (!requireNamespace("BiocManager", quietly = TRUE)) {
     cat("### The 'BiocManager' package is not available on the system and will be installed!!")
     install.packages("BiocManager", repos ="https://cloud.r-project.org")
   }
   # List packages that need to be installed
-  isInstalled <- packageNames %in% installed.packages()[, "Package"]
+  isInstalled <- packageNames %in% installed.packages(lib.loc = .libPaths(lib))[, "Package"]
   toBeInstalled <- packageNames[!isInstalled]
   # Installing if necessary
   if(length(toBeInstalled) > 0) {
-    cat("\n### The following packages are not available on", .libPaths(),
+    cat("\n### The following packages are not available on", .libPaths(lib),
         "and will be installed using BiocManager::install() prior to loading:\n -", paste0(toBeInstalled, collapse = "\n- "),
         "\n")
-    BiocManager::install(toBeInstalled, update = FALSE, ask = FALSE)
+    BiocManager::install(toBeInstalled, update = FALSE, ask = FALSE, lib = lib)
   } else {
     cat("\n### All required packages are available on your system and will be loaded\n")
   }
   # Loading the list of packages
   cat("\n### Now loading the required packages:", paste0(packageNames, collapse = " "), "\n")
   invisible(
-    sapply(packageNames, FUN = function(packageName) suppressPackageStartupMessages(library(package = packageName, character.only = TRUE)))
+    sapply(packageNames,
+           FUN = function(packageName) suppressPackageStartupMessages(
+             library(package = packageName,
+                     character.only = TRUE,
+                     lib.loc = .libPaths(lib)
+             )
+                                      )
+    )
   )
 }
 
