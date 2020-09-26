@@ -36,35 +36,6 @@ knitr::opts_chunk$set(dev='CairoPNG')
 
 
 ```{r getting parameters from snakemake object}
-## #############   INITIAL TESTING  ################
-#sampleInfoBamFiles <- "/data/projects/rymv_xantho_smallrna/seb/bai3_dataset_output/2_mapping_sRNA/bamfile_info.txt" # snakemake@input[["bam_files_info_file"]]
-#genomeGffFile <- "/data/projects/rymv_xantho_smallrna/seb/bai3_dataset_input/annot/MSU7.gff3" # snakemake@input[["genome_annotation_file"]]
-#genomeFastaFile <- "/data/projects/rymv_xantho_smallrna/seb/bai3_dataset_output/1_cat_ref/all_ref.fa" # snakemake@input[["genome_sequence_file"]]
-#sstackGffFile <- "/data/projects/rymv_xantho_smallrna/seb/bai3_dataset_output/4_ShortStack_bamMerged/ShortStack_All_miRNA.gff3" # snakemake@input[["sRNA_loci_annot_file"]]
-#ncores <- 6 # snakemake@threads
-#outDir <- "/data/projects/rymv_xantho_smallrna/seb/bai3_dataset_output/5_sRNA_loci_DE_analysis" # snakemake@params[["out_dir"]]
-#invisible(dir.exists(outDir) || dir.create(path = outDir, mode = "770"))
-#comparisonsFile <- "/data3/projects/pixies/scripts/treatmentsComparisons_2012.csv" # snakemake@params[["de_comparisons_file"]]
-#filterGffFile <- "/data3/projects/pixies/reference_genomic_data/NB_genome/Oryza_sativa_genomic_refseq_IRGSP_seqlevels.gff3" # snakemake@params[["filter_gff"]]
-## feature filtering based on total read counts
-#minRowSumTreshold <- 30 # snakemake@params[["minRowSumTreshold"]]
-## DESeq2 fonctions parameters values
-#variableOfInterest <- "Treatment"
-#batch <- "Experiment"
-#locfunc <- "shorth" # "median" #
-#fitType <- "parametric"
-#sizeFactEstimMethod <- "iterate" # "ratio" # "poscounts"
-#pAdjustMethod <- "BH"
-#cooksCutoff <- TRUE #! as.logical
-#independentFiltering <- FALSE #! as.logical
-#lfcThreshold <- 2 #! as.numeric
-#altHypothesis <- "greaterAbs"
-#alpha <- 0.05 #! as.numeric
-## DESeq2 VSR transformation method
-#typeTrans <- "rlog"
-##################################################################################
-
-
 # # #############   INITIAL TESTING  ################
 # sampleInfoBamFiles <- "/data/projects/rymv_xantho_smallrna/seb/bai3_dataset_output/2_mapping_sRNA/bamfile_info.txt"
 # genomeGffFile <- "/data/projects/rymv_xantho_smallrna/seb/bai3_dataset_output/1_cat_gtf/all_gtf.gtf"
@@ -159,7 +130,7 @@ necessaryPackages <- c(
   "SARTools",
   "UpSetR",
   "mclust",
-  "Cairo"
+  "Cairo", "svglite"
 )
 
 if (!"SARTools" %in% installed.packages(lib.loc = userLibPath)[, "Package"]) {

@@ -190,9 +190,6 @@ rule final:
 # -------------  0 QC:
 
 
-## PROBLEM: snakemake expects "0_fastqc/GXY-16_fastqc.html"
-## The file is written but with this name: /0_fastqc/GXY-16_trimAR_fastqc.html
-## I hope there is an optin in fastqc enabling to change the name of the output file..
 
 rule run_Fastqc:
     """
@@ -246,7 +243,7 @@ rule run_fastp:
         options = config["PARAMS"]["FASTP"]["options"]
     output:
         output_html = f"{out_dir}0_fastp/{{fastq}}_fastp_report.html",
-        fastq_trimmed =  f"{out_dir}0_fastp/{{fastq}}_trimmed.fastq"
+        fastq_trimmed =  f"{out_dir}0_fastp/{{fastq}}_trimmed.fastq.gz"
     singularity:
         config["SINGULARITY"]["MAIN"]
     conda:
@@ -255,6 +252,10 @@ rule run_fastp:
         """
             fastp --thread {threads} -i {input.fastq} -o {output.fastq_trimmed} -h {output.output_html} {params.options}
         """
+
+
+### !!!  THIS RULE FAILS: OUTFILE IS NOT FOUND  !!! #####
+### ??? IS MULTIQC RECENT ENOUGH? DOES IT HAVE THE FASTP MODULE?
 
 rule multiqc_fastp:
     """

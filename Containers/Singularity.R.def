@@ -79,7 +79,7 @@ From: ubuntu:18.04
     R -e "BiocManager::install('rtracklayer')"
     R -e "BiocManager::install('GenomicAlignments')"
     R -e "BiocManager::install(\
-                    c('readr', \
+                    c('svglite', 'readr', \
                     'paletteer', 'ShortRead', 'Rsubread', \
                     'genefilter', 'systemPipeR', 'UpSetR') \
     )"
