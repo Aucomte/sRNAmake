@@ -3,3 +3,8 @@ docs_perso
 *.pdf
 *.log
 R
+.Rproj.user
+.conda
+.snakemake
+fastp.json
+.*
