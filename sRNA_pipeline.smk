@@ -11,6 +11,9 @@ import getpass
 ###############################################################################
 # NOTE pas de caractere speciaux entre 2 wildcards
 
+## ??????????? I DO NOT KNOW HOW TO DO THAT BUT WE WOULD NEED TO USE THE PATHS
+## ??????????? PROVIDED IN THE SNAKEMAKE COMMAND LINE
+
 # --- Importing Configuration Files --- #
 configfile: 'config/config.yaml'
 cluster_config: "config/cluster_config_slurm.yaml"

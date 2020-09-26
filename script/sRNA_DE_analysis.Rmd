@@ -822,11 +822,6 @@ str(mcols(myDEloci))
 ```
 
 
-
-
-
-
-
 # Summary counts of overlap found in annotated features
 
 
@@ -834,7 +829,6 @@ Type of reference features | Count of overlapping DE sRNA clusters
 ---------------------------|-------------------------------------- 
 Gene | `r sum(!is.na(mcols(myDEloci)[ , "OlapGene_Names"]))` 
 Simplified transcript | `r sum(!is.na(mcols(myDEloci)[ , "OlapSimpleTrx_Names"]))` 
-xisRNA | `r sum(!is.na(mcols(myDEloci)[ , "OlapXisRNA_Names"]))` 
 
 
 Total number of DE sRNA clusters : `r length(myDEloci)`
@@ -1101,7 +1095,6 @@ Read-specific info is stored in a list of data frames. Each element of the list 
 ```{r getDElociReadsInfo, warning=FALSE}
 # Remove  'chrC', 'chrM' from seqlevels(myDEloci)
 seqlevels(myDEloci) <- seqlevelsInUse(myDEloci)
-#selectedLociForInspection <-  myDEloci[!is.na(mcols(myDEloci)[ , "OlapXisRNA_Names"])]
 selectedLociForInspection <-  myDEloci
 
 sample2treatMapping <- data.frame(sample = names(bamList), treatment = as.character(mcols(bamList)[, variableOfInterest]))
@@ -1360,7 +1353,7 @@ uniqueReadsSeqsForSelectedLocs <- bplapply(readsInfo, function(x) {
 ```
 
 
-## Expression plot of xisRNA loci across experimental treatments
+## Expression plot of DE sRNA loci across experimental treatments
 
 **May want to omit this step**
 
