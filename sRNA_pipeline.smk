@@ -373,7 +373,8 @@ rule run_mapping:
     input:
             reference = rules.bwa_index.input.reference,
             index = rules.bwa_index.output.sa_file,
-            fastq = get_fastq
+#            fastq = get_fastq
+            fastq = rules.run_fastp.output.fastq_trimmed
     output:
             sai_file = f"{out_dir}2_mapping_sRNA/{{fastq}}.sai",
             sam_file = f"{out_dir}2_mapping_sRNA/{{fastq}}.sam",
