@@ -211,7 +211,10 @@ rule run_Fastqc:
          """
          fastqc -o {out_dir}0_fastqc -t {threads} {input.fastq}
          infilename=$(basename {input.fastq})
-         mv "{out_dir}0_fastqc"/${{infilename%%.*}}_fastqc.html {output.html_fastqc}
+         fastqcOutFilePath="{out_dir}0_fastqc/${{infilename%%.*}}"_fastqc.html
+         finalOutFilePath="{output.html_fastqc}"
+         ## RUN ONLY IF SOURCE AND DEST ARE DIFFERENT PATHS 
+         [[ "$fastqcOutFilePath" == "$finalOutFilePath" ]] || mv "$fastqcOutFilePath" "$finalOutFilePath"
          """
 
 
@@ -231,6 +234,11 @@ rule multiqc_fastqc:
         config["SINGULARITY"]["MAIN"]
     wrapper:
         "0.65.0/bio/multiqc"
+
+
+## FASTP DOES NOT ALLOW TO FINE TUNE ADAPTER TRIMMING = THIS IS A BIG LIMITATION
+## RELATIVE TO OTHER TOOLS eg: https://adapterremoval.readthedocs.io/en/latest/manpage.html
+
 
 rule run_fastp:
     """
@@ -362,8 +370,11 @@ rule bwa_index:
 
 ###########
 
-## THIS IS STILL HOOKED TO THE INITIAL FASTQs NOT THE FASTP ONES
+## THIS USED TO BE HOOKED TO THE INITIAL FASTQs NOT THE FASTP ONES
 ## DELIBERATE?
+## SHOULD BE ABLE TO SPECIFY OPT ARGS TO bwa aln
+## {output.bam_file} SHOULD BE TEMP
+
 
 rule run_mapping:
     """
@@ -603,7 +614,7 @@ rule ShortStack:
 
 rule shortStack_populateGFF:
     """
-        Merge gff from shortstack with gff from miRNA base
+        Annotate gff from ShortStack with overlapping reference loci
     """
     threads: get_threads('shortStack_populateGFF', 1)
     input:
@@ -623,7 +634,7 @@ rule shortStack_populateGFF:
 rule shortStack_analysis:
     """
         ShortStack Analysis:
-        Generate a resume in html for all Shortstack outputs
+        Generate a html summary of Shortstack results
     """
     threads: get_threads('shortStack_analysis', 1)
     input:
@@ -640,7 +651,11 @@ rule shortStack_analysis:
         "script/shortStack_analysis.Rmd"
 
 rule diff_exp_analysis:
-    """Experimental sRNA Clusters Differential Expression Analysis"""
+    """
+    
+        Experimental sRNA Clusters Differential Expression Analysis
+    
+    """
     threads: get_threads('diff_exp_analysis', 4)
     input:
         bam_files_info_file = rules.generate_bamfile_info.output.out_file,

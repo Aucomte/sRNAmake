@@ -199,9 +199,12 @@ replicated <- as.logical(anyDuplicated(sampleInfoBam[, variableOfInterest]))
 if (!replicated) {
   batch <- NULL
 }
+if (!replicated) cat("No duplicate sample has been detected in the dataset!",
+ "Analysis will proceed with specific parameters.",
+  "Statistical inference on differential accumulation will be performed using the DESEq package and many of the QC steps will be omitted!\n")
 ```
 
-**`r if (!replicated) cat("No duplicate sample has been detected in the dataset! Analysis will proceed with specific parameters. Statistical inference on differential accumulation will be performed using the DESEq package and many of the QC steps will be omitted!\n")`)**
+****
 
 
 ## Default Parameter object defining what information is read from NGS files
@@ -237,7 +240,8 @@ knitr::kable(comparisons)
 
 NOTE: seqinfo information for all objects is set to the same info provided in the `chrominfo` variable.
 
-### Reference genome annotation and sequence (most likely rice)
+### Reference genome annotation and sequence
+
 ```{r refGenomeAnnot}
 genomeAnnotDB <- makeTxDbFromGFF(genomeGffFile, chrominfo = chrominfo )
 refGenes <- GenomicFeatures::genes(genomeAnnotDB)
@@ -248,9 +252,7 @@ refGenomeSeq <-FaFile(genomeFastaFile)
 
 ### Genome Segmentation for sRNA loci inferrence
 
-Finding regions that accumulate a number of reads in any of the libraries that is higher that what is expected by chance alone.
-
-**Loading sRNA clusters from ShortStack output**
+**Loading experimental sRNA clusters from genome segmentation-based inference method output**
 
 
 ```{r shortStackClustersAnnot}
@@ -283,8 +285,6 @@ sRnaClusters <- addRefAnnot(querGR = sRnaClusters, refGR = simplifiedRefTx , pre
 # QC mapping
 
 ## Table of mapping efficiency
-
-May alternatively want to use `Rsamtools::quickBamFlagSummary()` although there is no way to plot things from its output.
 
 ```{r mappingEffiency, eval= TRUE}
 propmapped <- bplapply(path(bamList), Rsubread::propmapped)

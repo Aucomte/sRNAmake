@@ -36,7 +36,8 @@ echo -e "## [$(date) - sRNA_pipeline]\t Launching snakemake pipeline"
 snakemake --nolock  --use-conda --use-singularity \
   --singularity-args "--bind /scratch:/tmp" \
   -s "$snkf" \
-  --jobs 24 \
+  --jobs 12 \
+  --local-cores $SLURM_CPUS_PER_TASK \
   --configfile "$cfgf" \
   -p --verbose \
   --latency-wait 60 --keep-going --restart-times 1 --rerun-incomplete  \
