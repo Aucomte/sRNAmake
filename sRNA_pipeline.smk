@@ -659,7 +659,7 @@ rule diff_exp_analysis:
     threads: get_threads('diff_exp_analysis', 4)
     input:
         bam_files_info_file = rules.generate_bamfile_info.output.out_file,
-        genome_sequence_file = rules.cat_fasta.output.cat_ref,
+        genome_sequence_file = rules.cat_fasta.output.cat_ref, ## THIS MAY NOT BE NECESSARY ANY MORE!!!!!
         genome_annotation_file = rules.cat_gtf.output.cat_gtf,
         sRNA_loci_annot_file = rules.shortStack_populateGFF.output.new_gff3
     params:
@@ -696,6 +696,5 @@ rule diff_exp_analysis:
         # virer le slash à la fin des nom de dossiers
         # corriger le check_configfile
         # faire le fileinfo pour les fastq trimmés avec fastp
-        # ???? Could the f strings in the shell blocks be the cause of the problem with {threads}?
         # trim parameter in config for the user to decide if trimming should be executed?
         # Logs: I believe it is more desirable to have both stdout and stderr in the same file, could use the trick employed in baseDmux to simplify coding
