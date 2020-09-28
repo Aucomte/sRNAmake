@@ -39,7 +39,7 @@ snakemake --nolock  --use-conda --use-singularity \
   --jobs 24 \
   --configfile "$cfgf" \
   -p --verbose \
-  --latency-wait 60 --keep-going --restart-times 1 --rerun-incomplete  \
+  --latency-wait 500 --keep-going --restart-times 1 --rerun-incomplete  \
   --cluster "python3 script/slurm_wrapper.py "$cfgf" config/cluster_config_slurm.yaml" \
   --cluster-config "config/cluster_config_slurm.yaml" \
   --cluster-status "python3 script/slurm_status.py"
