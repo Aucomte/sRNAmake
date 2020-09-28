@@ -1,3 +1,10 @@
 # Created by .ignore support plugin (hsz.mobi)
 docs_perso
 *.pdf
+*.log
+R
+.Rproj.user
+.conda
+.snakemake
+fastp.json
+.*

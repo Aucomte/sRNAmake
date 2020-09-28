@@ -7,12 +7,12 @@
     'directories':
         'fastq_dir': "/data/projects/rymv_xantho_smallrna/seb/bai3_dataset_input/fastq"   # STILL NECESSARY?    # samples dir with fastq
         'references_dir': "/data/projects/rymv_xantho_smallrna/seb/bai3_dataset_input/ref"       # references dir
-        'out_dir': "/data/projects/rymv_xantho_smallrna/seb/bai3_dataset_output/"       # Out directory
+        'out_dir': "/data/projects/rymv_xantho_smallrna/seb/bai3_dataset_withtrim_output/"       # Out directory
         'annotation': "/data/projects/rymv_xantho_smallrna/seb/bai3_dataset_input/annot"
     'fasta_suffix': 'fa'                                # file termination -> WHAT IF files have different extentions (eg fa, fast, ...)?
     'files':
         'miRNA_gff' : '/data3/projects/pixies/reference_genomic_data/NB_genome/miRBase_MSU7_MIR.gff3'
-        'sample_info': "/data/projects/rymv_xantho_smallrna/seb/bai3_dataset_input/samplesInfo_BAI3_trimmed.txt"
+        'sample_info': "/data/projects/rymv_xantho_smallrna/seb/bai3_dataset_input/samplesInfo_BAI3.txt"
         'de_comparisons_file' : "/data3/projects/pixies/scripts/treatmentsComparisons_2012.csv"
         'filter_gff' : "/data3/projects/pixies/reference_genomic_data/NB_genome/Oryza_sativa_genomic_refseq_IRGSP_seqlevels.gff3"
 #NASID: "NAS2"
@@ -21,7 +21,9 @@
 # Params for tools:
 PARAMS:
     FASTP:
-        options: "" # Carefull ! Quality trimming and adaptater removal is enabled by default.
+        options: "--overrepresentation_analysis -a TGGAATTCTCGGGTGCCAAGG --length_required 18 --length_limit 50" # Carefull ! Quality trimming and adaptater removal is enabled by default.
+    BWA_ALN:
+        options: ""
     SHORTSTACK:
         dicermin: 20
         dicermax: 24
@@ -49,6 +51,6 @@ PARAMS:
 
 
 SINGULARITY:
-    "MAIN" : "/data/projects/rymv_xantho_smallrna/pipeline_srnas/Containers/Singularity.R.simg"
+    "MAIN" : "/data/projects/rymv_xantho_smallrna/seb/srnapipe.main.simg"
 
 

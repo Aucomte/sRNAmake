@@ -10,6 +10,7 @@ From: ubuntu:18.04
     apt install -y software-properties-common locales
     apt install -y libpng16-16 libblas3 libblas-dev liblapack-dev liblapack3 libreadline7 r-recommended r-doc-html libxml2-dev libcurl4-openssl-dev libssl-dev libmagick++-dev libcurl3-gnutls perl
     apt install -y dirmngr
+    apt install -y libv8-3.14-dev
 
     echo 'export LC_ALL=C.UTF-8' >> /environment
     echo 'export LANG=C.UTF-8' >> /environment
@@ -77,6 +78,11 @@ From: ubuntu:18.04
     R -e "BiocManager::install('GenomicFeatures')"
     R -e "BiocManager::install('rtracklayer')"
     R -e "BiocManager::install('GenomicAlignments')"
+    R -e "BiocManager::install(\
+                    c('svglite', 'readr', \
+                    'paletteer', 'ShortRead', 'Rsubread', \
+                    'genefilter', 'systemPipeR', 'UpSetR') \
+    )"
 
 %environment
   export PATH="/opt/conda/bin:$PATH"

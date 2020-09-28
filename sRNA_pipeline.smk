@@ -11,6 +11,9 @@ import getpass
 ###############################################################################
 # NOTE pas de caractere speciaux entre 2 wildcards
 
+## ??????????? I DO NOT KNOW HOW TO DO THAT BUT WE WOULD NEED TO USE THE PATHS
+## ??????????? PROVIDED IN THE SNAKEMAKE COMMAND LINE
+
 # --- Importing Configuration Files --- #
 
 #pprint.pprint(workflow.__dict__)
@@ -52,12 +55,6 @@ def check_config_file():
     if not os.path.exists(config["DATA"]["directories"]["fastq_dir"]):
         logger.info("CONFIG FILE CHECKING FAIL : in the DATA section, fastq_dir directory does not exists")
         raise ValueError("CONFIG FILE CHECKING FAIL : in the DATA section, fastq_dir directory does not exists")
-    if not os.path.exists(config["DATA"]["directories"]["references_dir"]):
-        logger.info("CONFIG FILE CHECKING FAIL : in the DATA section, references_dir directory does not exists")
-        raise ValueError("CONFIG FILE CHECKING FAIL : in the DATA section, references_dir directory does not exists")
-    if not os.path.exists(config["DATA"]["directories"]["annotation"]):
-        logger.info("CONFIG FILE CHECKING FAIL : in the DATA section, annotation directory does not exists")
-        raise ValueError("CONFIG FILE CHECKING FAIL : in the DATA section, annotation directory does not exists")
     if config['DATA']['fasta_suffix'] not in ["fasta", "fna", "fa", "fsa"]:
         raise WorkflowError(f"\n\tERROR : {config['DATA']['fasta_suffix']} is not a good extention for fasta file (fasta, fna, fa, fsa).\nExiting...")
 
@@ -98,9 +95,7 @@ def get_threads(rule, default):
 #*###############################################################################
 def final_return(wildcards):
     dico_final = {
-                     "multiqc_fastqc" : expand(f"{out_dir}/0_fastqc/MULTIQC_FASTQC/multiqc.html"),
-                     "multiqc_stats" : expand(f"{out_dir}/2_mapping_sRNA/MULTIQC_STATS/multiqc.html"),
-                     "multiqc_fastp" : expand(f"{out_dir}/0_fastp/MULTIQC_FASTP/multiqc.html"),
+                     "multiqc_fastqc" : expand(f"{out_dir}/6_MULTIQC/multiqc.html"),
                      "baminfo" : f"{out_dir}/2_mapping_sRNA/bamfile_info.txt",
                      "bam_merged_by_treatments" : expand(f"{out_dir}/3_merge_bam_sRNA/{{treatment}}_merge.bam",treatment=TREATMENT),
                      "ShortStack_gff" : expand(f"{out_dir}/4_ShortStack/ShortStack_All.gff3"),
@@ -112,8 +107,8 @@ def final_return(wildcards):
 
 #*###############################################################################
 
-## I AM NOT SURE WE NEED THAT? BECAUSE OF THIS THE ANNOTATION FILES (WHICH MUST BE GTF, WHY?) NEED
-## ALSO TO HAVE THE SAME NAME PREFIX, IS IT REALLY DESIRABLE?
+## ??????????  I AM NOT SURE WE NEED THAT? BECAUSE OF THIS THE ANNOTATION FILES (WHICH MUST BE GTF, WHY?) NEED
+## ??????????  ALSO TO HAVE THE SAME NAME PREFIX, IS IT REALLY DESIRABLE?
 REFERENCES, = glob_wildcards(f"{references_dir}/{{references}}.{suffix_file}", followlinks=True)
 
 def unique(list1):
@@ -123,6 +118,13 @@ def unique(list1):
         if x not in unique_list:
             unique_list.append(x)
     return(unique_list)
+
+def checkIfDuplicates_1(listOfElems):
+    ''' Check if given list contains any duplicates '''
+    if len(listOfElems) == len(set(listOfElems)):
+        return False
+    else:
+        return True
 
 samples = {}
 header = ""
@@ -149,6 +151,16 @@ for key in samples:
     if key[0] == "samplename":
         fastq_name.append(samples[key])
 TREATMENT = unique(list(treatments))
+
+def check_config_file():
+    if checkIfDuplicates_1(fastq_name):
+        logger.info("CONFIG FILE CHECKING FAIL : in the DATA section, fastq_dir directory does not exists")
+        raise ValueError("CONFIG FILE CHECKING FAIL : in the DATA section, fastq_dir directory does not exists")
+
+## ????????? DO WE WANT TO RENAME THIS variable/wildcard TO SAMPLE_NAME?
+## ????????? IDEALLY WOULD NEED TO CHECK THAT NONE OF THE VALUES OF samplename
+## ????????? IN sampleInfo FILE ARE DUPLICATED BECAUSE THIS IS AN IMPLICIT
+## ????????? ASSUMPTION AND IF IT HAPPENED IT WOULD BREAK THE PIPELINE
 FASTQ_NAME = unique(list(fastq_name))
 
 ################################
@@ -177,13 +189,13 @@ rule final:
 
 rule run_Fastqc:
     """
-        QC of fastq files
+        QC of fastq files on raw fastq files
     """
     threads: get_threads("run_Fastqc", 1)
     input:
         fastq = get_fastq
     output:
-        html_fastqc = f"{out_dir}/0_fastqc/{{fastq}}_fastqc.html"
+        html_fastqc = f"{out_dir}/0_QC/fastqc/{{fastq}}_raw_fastqc.html"
     log:
         error = f"{log_dir}/run_Fastqc/{{fastq}}.e",
         output = f"{log_dir}/run_Fastqc/{{fastq}}.o"
@@ -193,35 +205,32 @@ rule run_Fastqc:
             "envs/quality.yaml"
     shell:
          """
-         fastqc -o {out_dir}/0_fastqc -t {threads} {input.fastq} 1>>{log.output} 2>>{log.output}
+         fastqc -o {out_dir}/0_QC/fastqc -t {threads} {input.fastq}
+         infilename=$(basename {input.fastq})
+         fastqcOutFilePath="{out_dir}/0_QC/fastqc/${{infilename%%.*}}"_fastqc.html
+         finalOutFilePath="{output.html_fastqc}"
+         ## RUN ONLY IF SOURCE AND DEST ARE DIFFERENT PATHS 
+         [[ "$fastqcOutFilePath" == "$finalOutFilePath" ]] || mv "$fastqcOutFilePath" "$finalOutFilePath"
          """
 
-rule multiqc_fastqc:
-    """
-        multiqc on fastqc directory
-    """
-    input:
-        expand(f"{out_dir}/0_fastqc/{{fastq}}_fastqc.html", fastq = FASTQ_NAME)
-    output:
-        f"{out_dir}/0_fastqc/MULTIQC_FASTQC/multiqc.html"
-    log:
-        f"{log_dir}/run_multiqc_fastqc/multiqc.log"
-    singularity:
-        config["SINGULARITY"]["MAIN"]
-    wrapper:
-        "0.65.0/bio/multiqc"
+
+## FASTP DOES NOT ALLOW TO FINE TUNE ADAPTER TRIMMING = THIS IS A BIG LIMITATION
+## RELATIVE TO OTHER TOOLS eg: https://adapterremoval.readthedocs.io/en/latest/manpage.html
+
 
 rule run_fastp:
     """
         fastp on reads
     """
+    threads: get_threads("run_fastp", 1)
     input:
         fastq = get_fastq
     params:
         options = config["PARAMS"]["FASTP"]["options"]
     output:
-        output_html = f"{out_dir}/0_fastp/{{fastq}}_fastp_report.html",
-        fastq_trimmed =  f"{out_dir}/0_fastp/{{fastq}}_trimmed.fastq"
+        output_html = f"{out_dir}/0_QC/{{fastq}}_fastp_report.html",
+        output_json = f"{out_dir}/0_QC/{{fastq}}_fastp_report.json",
+        fastq_trimmed =  f"{out_dir}/0_QC/{{fastq}}_trimmed.fastq"
     log:
         error = f"{log_dir}/run_fastp/{{fastq}}_fastp.e",
         output = f"{log_dir}/run_fastp/{{fastq}}_fastp.o"
@@ -231,24 +240,34 @@ rule run_fastp:
         "envs/quality.yaml"
     shell:
         """
-            fastp -i {input.fastq} -o {output.fastq_trimmed} -h {output.output_html} {params.options} 1>>{log.output} 2>>{log.error}
+            fastp --thread {threads} -i {input.fastq} -o {output.fastq_trimmed} -h {output.output_html} -j {output.output_json} {params.options}  1>>{log.output} 2>>{log.error}
         """
 
-rule multiqc_fastp:
+rule run_Fastqc_trimmed:
     """
-        multiqc on fastp directory
+        QC of fastq files on trimmed fastq files
     """
+    threads: get_threads("run_Fastqc", 1)
     input:
-        expand(f"{out_dir}/0_fastp/{{fastq}}_fastp_report.html", fastq = FASTQ_NAME)
+        fastq = f"{out_dir}/0_QC/{{fastq}}_trimmed.fastq"
     output:
-        f"{out_dir}/0_fastp/MULTIQC_FASTP/multiqc.html"
+        html_fastqc = f"{out_dir}/0_QC/fastqc/{{fastq}}_trimmed_fastqc.html"
     log:
-        f"{log_dir}/run_multiqc_fastp/multiqc.log"
+        error = f"{log_dir}/run_Fastqc/{{fastq}}.e",
+        output = f"{log_dir}/run_Fastqc/{{fastq}}.o"
     singularity:
-        config["SINGULARITY"]["MAIN"]
-    wrapper:
-        "0.65.0/bio/multiqc"
-
+            config["SINGULARITY"]["MAIN"]
+    conda:
+            "envs/quality.yaml"
+    shell:
+         """
+         fastqc -o {out_dir}/0_QC/fastqc -t {threads} {input.fastq}
+         infilename=$(basename {input.fastq})
+         fastqcOutFilePath="{out_dir}/0_QC/fastqc/${{infilename%%.*}}"_fastqc.html
+         finalOutFilePath="{output.html_fastqc}"
+         ## RUN ONLY IF SOURCE AND DEST ARE DIFFERENT PATHS 
+         [[ "$fastqcOutFilePath" == "$finalOutFilePath" ]] || mv "$fastqcOutFilePath" "$finalOutFilePath"
+         """
 
 rule generate_fastqtrimmed_info:
     """
@@ -256,12 +275,12 @@ rule generate_fastqtrimmed_info:
     """
     threads: get_threads('generate_fastqtrimmed_info', 1)
     input:
-        fastp_files = expand(f"{out_dir}/0_fastp/{{fastq}}_trimmed.fastq", fastq = FASTQ_NAME),
+        fastp_files = expand(f"{out_dir}/0_QC/{{fastq}}_trimmed.fastq", fastq = FASTQ_NAME),
         samplefile = samplefile
     params:
-        outdir = f"{out_dir}/0_fastp/"
+        outdir = f"{out_dir}/0_QC/"
     output:
-        out_file = f"{out_dir}/0_fastp/fastq_trimmed_info.txt"
+        out_file = f"{out_dir}/0_QC/fastq_trimmed_info.txt"
     script:
         "script/write_fastqtrimmed_info.py"
 
@@ -278,29 +297,29 @@ rule cat_fasta :
     output:
         cat_ref = f"{out_dir}/1_cat_ref/all_ref.{suffix_file}"
     log:
-        error = f"{log_dir}/cat_ref/all_ref.e",
-        output = f"{log_dir}/cat_ref/all_ref.o"
+         error = f"{log_dir}/cat_ref/all_ref.e",
+         output = f"{log_dir}/cat_ref/all_ref.o"
     shell:
          """
             cat {input.reference} > {output.cat_ref}
          """
 
-rule cat_gtf :
-    """
-        cat all gtf in annotation dir
-    """
-    threads: get_threads('cat_gtf', 1)
-    input:
-        gtf = expand(f"{config['DATA']['directories']['annotation']}{{references}}.gtf", references = REFERENCES)
-    output:
-        cat_gtf = f"{out_dir}/1_cat_gtf/all_gtf.gtf"
-    log:
-        error = f"{log_dir}/cat_gtf/all_gtf.e",
-        output = f"{log_dir}/cat_gtf/all_gtf.o"
-    shell:
-         """
-            cat {input.gtf} > {output.cat_gtf}
-         """
+#rule cat_gtf :
+#    """
+#        cat all gtf in annotation dir
+#    """
+#    threads: get_threads('cat_gtf', 1)
+#    input:
+#        gtf = expand(f"{config['DATA']['directories']['annotation']}{{references}}.gtf", references = REFERENCES)
+#    output:
+#        cat_gtf = f"{out_dir}/1_cat_gtf/all_gtf.gtf"
+#    log:
+#        error = f"{log_dir}/cat_gtf/all_gtf.e",
+#        output = f"{log_dir}/cat_gtf/all_gtf.o"
+#    shell:
+#         """
+#            cat {input.gtf} > {output.cat_gtf}
+#         """
 
 # --------------------- 2 MAPPING
 
@@ -340,6 +359,11 @@ rule bwa_index:
 
 ###########
 
+## THIS USED TO BE HOOKED TO THE INITIAL FASTQs NOT THE FASTP ONES
+## DELIBERATE?
+## SHOULD BE ABLE TO SPECIFY OPT ARGS TO bwa aln
+## {output.bam_file} SHOULD BE TEMP
+
 rule run_mapping:
     """
         make bwa aln for all samples on all merged references + sorting + indexing
@@ -356,6 +380,8 @@ rule run_mapping:
             bam_file = f"{out_dir}/2_mapping_sRNA/{{fastq}}.bam",
             sorted_bam_file = f"{out_dir}/2_mapping_sRNA/{{fastq}}.sorted.bam",
             sorted_bam_index = f"{out_dir}/2_mapping_sRNA/{{fastq}}.sorted.bam.bai",
+    params:
+            options= config['PARAMS']['BWA_ALN']['options']
     log:
             error = f"{log_dir}/bwa_aln/{{fastq}}.e",
             output = f"{log_dir}/bwa_aln/{{fastq}}.o"
@@ -379,14 +405,14 @@ rule run_mapping:
     conda:
             "envs/bam_treatment.yaml"
     shell:
-            f"""
-                # Align reads to reference genome:
-                bwa aln -t {{threads}} {{input.reference}} {{input.fastq}} > {{output.sai_file}} 2>>{{log.error}}
-                bwa samse -n 5 {{input.reference}} {{output.sai_file}} {{input.fastq}} > {{output.sam_file}} 2>>{{log.error}}
-                samtools view -bSh -o {{output.bam_file}} {{output.sam_file}} 1>>{{log.output}} 2>>{{log.error}}
-                samtools sort --threads {{threads}} -o {{output.sorted_bam_file}} {{output.bam_file}} 1>>{{log.output}} 2>>{{log.error}}
-                samtools index {{output.sorted_bam_file}} 1>>{{log.output}} 2>>{{log.error}}
-            """
+        """
+            # Align reads to reference genome:
+            bwa aln -t {threads} {params.options} {input.reference} {input.fastq} > {output.sai_file} 2>>{log.error}
+            bwa samse -n 5 {input.reference} {output.sai_file} {input.fastq} > {output.sam_file} 2>>{log.error}
+            samtools view -bSh -o {output.bam_file} {output.sam_file} 1>>{log.output} 2>>{log.error}
+            samtools sort --threads {threads} -o {output.sorted_bam_file} {output.bam_file} 1>>{log.output} 2>>{log.error}
+            samtools index {output.sorted_bam_file} 1>>{log.output} 2>>{log.error}
+        """
 
 rule generate_bamfile_info:
     """
@@ -442,23 +468,6 @@ rule samtools_stats:
                 samtools idxstats --threads {threads} {input.sorted_bam_file} > {input.sorted_bam_file}.idxstats.log 2>>{log.error}
                 samtools flagstat --threads {threads} {input.sorted_bam_file} > {input.sorted_bam_file}.flagstat.log 2>>{log.error}
             """
-
-rule multiqc_stats:
-    """
-        multiqc on stats on mapping
-    """
-    input:
-        expand(f"{out_dir}/2_mapping_sRNA/{{fastq}}.sorted.bam.bamStats.txt", fastq = FASTQ_NAME),
-        expand(f"{out_dir}/2_mapping_sRNA/{{fastq}}.sorted.bam.idxstats.log", fastq = FASTQ_NAME),
-        expand(f"{out_dir}/2_mapping_sRNA/{{fastq}}.sorted.bam.flagstat.log", fastq = FASTQ_NAME),
-    output:
-        f"{out_dir}/2_mapping_sRNA/MULTIQC_STATS/multiqc.html"
-    log:
-        f"{log_dir}/run_multiqc_stats/multiqc.log"
-    singularity:
-        config["SINGULARITY"]["MAIN"]
-    wrapper:
-        "0.65.0/bio/multiqc"
 
 # --------------------- 3 Merge
 
@@ -578,7 +587,7 @@ rule ShortStack:
 
 rule shortStack_populateGFF:
     """
-        Merge gff from shortstack with gff from miRNA base
+        Annotate gff from ShortStack with overlapping reference loci
     """
     threads: get_threads('shortStack_populateGFF', 1)
     input:
@@ -598,7 +607,7 @@ rule shortStack_populateGFF:
 rule shortStack_analysis:
     """
         ShortStack Analysis:
-        Generate a resume in html for all Shortstack outputs
+        Generate a html summary of Shortstack results
     """
     threads: get_threads('shortStack_analysis', 1)
     input:
@@ -615,16 +624,17 @@ rule shortStack_analysis:
         "script/shortStack_analysis.Rmd"
 
 rule diff_exp_analysis:
-    """Experimental sRNA Clusters Differential Expression Analysis"""
+    """
+       Experimental sRNA Clusters Differential Expression Analysis
+    """
     threads: get_threads('diff_exp_analysis', 4)
     input:
         bam_files_info_file = rules.generate_bamfile_info.output.out_file,
-        new_gff3 = rules.shortStack_populateGFF.output.new_gff3,
-        genome_sequence_file = rules.cat_fasta.output.cat_ref,
-        genome_annotation_file = rules.cat_gtf.output.cat_gtf,
+        genome_sequence_file = rules.cat_fasta.output.cat_ref, ## THIS MAY NOT BE NECESSARY ANY MORE!!!!!
+        genome_annotation_file = config["DATA"]["files"]["annotation"],
         sRNA_loci_annot_file = rules.shortStack_populateGFF.output.new_gff3
     params:
-        outDir = lambda w, output: os.path.dirname(output.html_output),
+        out_dir = lambda w, output: os.path.dirname(output.html_output),
         de_comparisons_file = config["DATA"]["files"]["de_comparisons_file"],
         filter_gff = config["DATA"]["files"]["filter_gff"],
         minRowSumTreshold = config["PARAMS"]["DE_ANALYSIS"]["minRowSumTreshold"],
@@ -651,12 +661,35 @@ rule diff_exp_analysis:
         "script/sRNA_DE_analysis.Rmd"
 
 
+rule multiqc:
+    """
+        multiqc on outdir directory
+    """
+    threads: get_threads("multiqc", 1)
+    input:
+        expand(f"{out_dir}/0_QC/{{fastq}}_fastp_report.html", fastq = FASTQ_NAME),
+        expand(f"{out_dir}/0_QC/fastqc/{{fastq}}_raw_fastqc.html", fastq = FASTQ_NAME),
+        expand(f"{out_dir}/0_QC/fastqc/{{fastq}}_trimmed_fastqc.html", fastq = FASTQ_NAME),
+        expand(f"{out_dir}/2_mapping_sRNA/{{fastq}}.sorted.bam.bamStats.txt", fastq = FASTQ_NAME),
+        expand(f"{out_dir}/2_mapping_sRNA/{{fastq}}.sorted.bam.idxstats.log", fastq = FASTQ_NAME),
+        expand(f"{out_dir}/2_mapping_sRNA/{{fastq}}.sorted.bam.flagstat.log", fastq = FASTQ_NAME),
+    output:
+        f"{out_dir}/6_MULTIQC/multiqc.html"
+    log:
+        f"{log_dir}/multiqc/multiqc.log"
+    singularity:
+        config["SINGULARITY"]["MAIN"]
+    wrapper:
+        "0.65.0/bio/multiqc"
+
+
 # TODO :
         # scratch
         # vérifier que toutes les valeurs de sample names soient différents
         # enlever cat_gtf pour l'instant --> un gtf faire a la main
         # fastqc --> pas la wildcard fastq mais le nom du chemin en sortie
         # multiqc pas assez récent pour fastp dans le wrapper?
-        # mettre option supp à bwa-aln
-        # faire multiqc sur out_dir
-        # revoir la sortie de quality --> fastqc avant et après fastp
+
+        # trim parameter in config for the user to decide if trimming should be executed?
+        # Logs: I believe it is more desirable to have both stdout and stderr in the same file, could use the trick employed in baseDmux to simplify coding
+

@@ -36,33 +36,34 @@ knitr::opts_chunk$set(dev='CairoPNG')
 
 
 ```{r getting parameters from snakemake object}
-## #############   INITIAL TESTING  ################
-#sampleInfoBamFiles <- "/data/projects/rymv_xantho_smallrna/seb/bai3_dataset_output/2_mapping_sRNA/bamfile_info.txt" # snakemake@input[["bam_files_info_file"]]
-#genomeGffFile <- "/data/projects/rymv_xantho_smallrna/seb/bai3_dataset_input/annot/MSU7.gff3" # snakemake@input[["genome_annotation_file"]]
-#genomeFastaFile <- "/data/projects/rymv_xantho_smallrna/seb/bai3_dataset_output/1_cat_ref/all_ref.fa" # snakemake@input[["genome_sequence_file"]]
-#sstackGffFile <- "/data/projects/rymv_xantho_smallrna/seb/bai3_dataset_output/4_ShortStack_bamMerged/ShortStack_All_miRNA.gff3" # snakemake@input[["sRNA_loci_annot_file"]]
-#ncores <- 6 # snakemake@threads
-#outDir <- "/data/projects/rymv_xantho_smallrna/seb/bai3_dataset_output/5_sRNA_loci_DE_analysis" # snakemake@params[["out_dir"]]
-#invisible(dir.exists(outDir) || dir.create(path = outDir, mode = "770"))
-#comparisonsFile <- "/data3/projects/pixies/scripts/treatmentsComparisons_2012.csv" # snakemake@params[["de_comparisons_file"]]
-#filterGffFile <- "/data3/projects/pixies/reference_genomic_data/NB_genome/Oryza_sativa_genomic_refseq_IRGSP_seqlevels.gff3" # snakemake@params[["filter_gff"]]
-## feature filtering based on total read counts
-#minRowSumTreshold <- 30 # snakemake@params[["minRowSumTreshold"]]
-## DESeq2 fonctions parameters values
-#variableOfInterest <- "Treatment"
-#batch <- "Experiment"
-#locfunc <- "shorth" # "median" #
-#fitType <- "parametric"
-#sizeFactEstimMethod <- "iterate" # "ratio" # "poscounts"
-#pAdjustMethod <- "BH"
-#cooksCutoff <- TRUE #! as.logical
-#independentFiltering <- FALSE #! as.logical
-#lfcThreshold <- 2 #! as.numeric
-#altHypothesis <- "greaterAbs"
-#alpha <- 0.05 #! as.numeric
-## DESeq2 VSR transformation method
-#typeTrans <- "rlog"
-##################################################################################
+# # #############   INITIAL TESTING  ################
+# sampleInfoBamFiles <- "/data/projects/rymv_xantho_smallrna/seb/bai3_dataset_output/2_mapping_sRNA/bamfile_info.txt"
+# genomeGffFile <- "/data/projects/rymv_xantho_smallrna/seb/bai3_dataset_output/1_cat_gtf/all_gtf.gtf"
+# genomeFastaFile <- "/data/projects/rymv_xantho_smallrna/seb/bai3_dataset_output/1_cat_ref/all_ref.fa"
+# sstackGffFile <- "/data/projects/rymv_xantho_smallrna/seb/bai3_dataset_output/4_ShortStack/ShortStack_All_miRNA.gff3"
+# ncores <- 6 # snakemake@threads
+# outDir <- "/data/projects/rymv_xantho_smallrna/seb/bai3_dataset_output/5_sRNA_loci_DE_analysis"
+# invisible(dir.exists(outDir) || dir.create(path = outDir, mode = "770"))
+# comparisonsFile <- "/data3/projects/pixies/scripts/treatmentsComparisons_2012.csv"
+# filterGffFile <- "/data3/projects/pixies/reference_genomic_data/NB_genome/Oryza_sativa_genomic_refseq_IRGSP_seqlevels.gff3"
+# # feature filtering based on total read counts
+# minRowSumTreshold <- 30 # snakemake@params[["minRowSumTreshold"]]
+# # DESeq2 fonctions parameters values
+# variableOfInterest <- "Treatment"
+# batch <- "Experiment"
+# locfunc <- "shorth" # "median" #
+# fitType <- "parametric"
+# sizeFactEstimMethod <- "iterate" # "ratio" # "poscounts"
+# pAdjustMethod <- "BH"
+# cooksCutoff <- TRUE #! as.logical
+# independentFiltering <- FALSE #! as.logical
+# lfcThreshold <- 2 #! as.numeric
+# altHypothesis <- "greaterAbs"
+# alpha <- 0.05 #! as.numeric
+# # DESeq2 VSR transformation method
+# typeTrans <- "rlog"
+# #################################################################################
+
 
 ##################### LOADING PARAMS FROM SNAKEMAKE OBJECT ######################
 sampleInfoBamFiles <- snakemake@input[["bam_files_info_file"]]
@@ -101,27 +102,7 @@ accessoryFuncFile <- file.path(normalizePath(path = "./script", mustWork = TRUE)
 
 ## Loading required packages and function definitions
 
-```{r loadPackages}
-necessaryPackages <- c(
-  "parallel",
-  "dplyr", "readr", "reshape2", "ggplot2", "fs",
-  "ggplot2", 
-  "ComplexHeatmap",
-  "RColorBrewer", "paletteer",
-  "DT",
-  "GenomicAlignments", "GenomicFeatures", "Rsamtools", "rtracklayer",
-  "ShortRead", "Rsubread",
-  "genefilter",
-  "systemPipeR",
-  "SARTools",
-  "UpSetR",
-  "mclust",
-  "Cairo"
-)
-
-
-#options(bitmapType='cairo')
-
+```{r install and load R packages and functions}
 source(file = accessoryFuncFile)
 
 .Last <- function() {
@@ -130,15 +111,43 @@ source(file = accessoryFuncFile)
   cat("bye bye...\n")
 }
 
-if (!"SARTools" %in% installed.packages()[, "Package"]) {devtools::install_github("PF2-pasteur-fr/SARTools", build_opts="--no-resave-data",
-                                                                                  dependencies = TRUE, upgrade = FALSE)}
-myLoadInstall(necessaryPackages)
+userLibPath <- normalizePath(Sys.getenv("R_LIBS_USER"))
+if(!file.exists(userLibPath)) {
+  warning("Creating the R library installation directory:", userLibPath, "\n")
+  dir.create(userLibPath, recursive = TRUE)
+}
+
+necessaryPackages <- c(
+  "dplyr", "readr", "reshape2", "ggplot2", "fs",
+  "ggplot2", 
+  "ComplexHeatmap",
+  "RColorBrewer", "paletteer",
+  "DT",
+  "GenomicAlignments", "GenomicFeatures", "Rsamtools", "rtracklayer",
+  "ShortRead", "Rsubread",
+  "genefilter",
+  "systemPipeR", "DESeq", "DESeq2",
+  "SARTools",
+  "UpSetR",
+  "mclust",
+  "Cairo", "svglite"
+)
+
+if (!"SARTools" %in% installed.packages(lib.loc = userLibPath)[, "Package"]) {
+  warning("The SARTools package is unavailable and will be installed in:\n", userLibPath, "\n")
+  devtools::install_github("PF2-pasteur-fr/SARTools", build_opts="--no-resave-data",
+                           dependencies = TRUE, upgrade = FALSE,
+                           lib = userLibPath
+  )
+}
+myLoadInstall(necessaryPackages, lib = userLibPath)
+
+#options(bitmapType='cairo')
 
 ```
 
 
 ## Parallel computing
-
 
 ```{r BiocParallelStart}
 #cl <- makeCluster(3, "SOCK") # create a local cluster with the specified number of cores
@@ -190,9 +199,12 @@ replicated <- as.logical(anyDuplicated(sampleInfoBam[, variableOfInterest]))
 if (!replicated) {
   batch <- NULL
 }
+if (!replicated) cat("No duplicate sample has been detected in the dataset!",
+ "Analysis will proceed with specific parameters.",
+  "Statistical inference on differential accumulation will be performed using the DESEq package and many of the QC steps will be omitted!\n")
 ```
 
-**`r if (!replicated) cat("No duplicate sample has been detected in the dataset! Analysis will proceed with specific parameters. Statistical inference on differential accumulation will be performed using the DESEq package and many of the QC steps will be omitted!\n")`)**
+****
 
 
 ## Default Parameter object defining what information is read from NGS files
@@ -228,26 +240,19 @@ knitr::kable(comparisons)
 
 NOTE: seqinfo information for all objects is set to the same info provided in the `chrominfo` variable.
 
-### Reference genome annotation and sequence (most likely rice)
+### Reference genome annotation and sequence
+
 ```{r refGenomeAnnot}
-genomeAnnotGR <- rtracklayer::import(genomeGffFile)
-newsi <- GenomeInfoDb::merge(chrominfo, seqinfo(genomeAnnotGR))
-seqinfo(genomeAnnotGR, new2old = match(seqnames(newsi), seqlevels(genomeAnnotGR))) <- newsi
-refGenes <- genomeAnnotGR[genomeAnnotGR$type == "gene"]
-names(refGenes) <- refGenes$Name
-
-genomeAnnotDB <- makeTxDbFromGFF(genomeGffFile, format="gff3", chrominfo = chrominfo )
+genomeAnnotDB <- makeTxDbFromGFF(genomeGffFile, chrominfo = chrominfo )
+refGenes <- GenomicFeatures::genes(genomeAnnotDB)
 simplifiedRefTx <- reduce(exonsBy(genomeAnnotDB, by = "gene"))
-
 refGenomeSeq <-FaFile(genomeFastaFile)
 ```
 
 
 ### Genome Segmentation for sRNA loci inferrence
 
-Finding regions that accumulate a number of reads in any of the libraries that is higher that what is expected by chance alone.
-
-**Loading sRNA clusters from ShortStack output**
+**Loading experimental sRNA clusters from genome segmentation-based inference method output**
 
 
 ```{r shortStackClustersAnnot}
@@ -258,26 +263,16 @@ Finding regions that accumulate a number of reads in any of the libraries that i
   mcols(sRnaClusters)$id <- names(sRnaClusters)
 ```
 
-### Previously annotated reference xisRNAs
-
-**May want to omit this step**
-
-```{r instanciateXisrnaGR}
-# Load xisRNA info table
-xisrna <- read.csv2(xisrnaBai3File, stringsAsFactors = FALSE)
-str(xisrna)
-# Create a GRanges containning all the info from the file.
-xisrnaGR <- GBrowser2GRanges(as.character(xisrna$locationMSU7))
-names(xisrnaGR) <- as.character(xisrna$xisRNAID)
-seqinfo(xisrnaGR) <- merge(seqinfo(xisrnaGR), chrominfo)
-mcols(xisrnaGR) <- xisrna[, c(-1, -2)]
-```
 
 ### Recording overlap between candidate  sRNA loci (genome segments) and genomic features of interest
 
 Find overlap with annotated genes
+
+**!! THIS LINE BELOW CAN BREAK EVERYTHING IF GTF DOES NOT HAVE THE CORRESPONDING COLS!!!! **
+
+
 ```{r}
-sRnaClusters <- addRefAnnot(querGR = sRnaClusters, refGR = refGenes, mcolsToKeep = c("Note"), prefix = "OlapGene_")
+sRnaClusters <- addRefAnnot(querGR = sRnaClusters, refGR = refGenes,  mcolsToKeep = "gene_id", prefix = "OlapGene_")
 ```
 
 Find overlap with annotated 'simplified' trancripts 
@@ -287,20 +282,9 @@ sRnaClusters <- addRefAnnot(querGR = sRnaClusters, refGR = simplifiedRefTx , pre
 ```
 
 
-
-**DELETE**  
-Find Diff accumul sRNA loci that overlap with xisRNA clusters
-
-```{r, eval = FALSE}
-sRnaClusters <- addRefAnnot(querGR = sRnaClusters, refGR = xisrnaGR, mcolsToKeep = c("Group", "Family", "Subfamily"), prefix = "OlapXisRNA_")
-```
-
-
 # QC mapping
 
 ## Table of mapping efficiency
-
-May alternatively want to use `Rsamtools::quickBamFlagSummary()` although there is no way to plot things from its output.
 
 ```{r mappingEffiency, eval= TRUE}
 propmapped <- bplapply(path(bamList), Rsubread::propmapped)
@@ -334,15 +318,14 @@ bamTag(qcBamParam)  <- c("NM", "AS", "X0", "XT","XA")
 galnList <- bplapply(bamList, readGAlignments, param=qcBamParam, BPPARAM = parallelBackEnd)
 # SHOULD TRY TO //ize that:
 readMapQual <- data.frame()
-	for (i in 1:length(galnList)) {
-		if (!length(galnList[[i]]) == 0) { 
-			table <- cbind(
-			  as.data.frame(mcols(galnList[[i]])),
-				sample = names(galnList)[i]
-				)
-			readMapQual <- rbind(readMapQual, table)
-		}
-	}
+    for (i in 1:length(galnList)) {
+        if (!length(galnList[[i]]) == 0) {
+            table <- cbind(
+              as.data.frame(mcols(galnList[[i]])),
+              sample = names(galnList)[i]
+            )
+          readMapQual <- rbind(readMapQual, table) }
+    }
 yieldSize(bamList) <- NA
 #write.csv(readMapQual, file = "QC_readMapQual.csv")
 
@@ -400,36 +383,8 @@ summary(sstackClustCounts)
 
 ## Filtering out features that overlap with annotated rRNA or tRNA loci.
 
-Right now the code is a bit clumsy...
 
-TEST IF TYPES IN PROVIDED gff HAS THE RELEVANT TYPES
-
-IF NOT TEST IF OTHER GFF PROVIDED
-
-OTHERWISE 
-
-
-```{r locationFiltering}
-# clumsily getting annotation from the NCBI annotation of the IRGSP genome assembly  with 'proper' seqlevels
-NipNCBIAnnot <- rtracklayer::import(file.path(dirname(genomeGffFile), "Oryza_sativa_genomic_refseq_IRGSP_seqlevels.gff3"), format = "gff3")
-
-# Find in this annotation GRanges corresponding to tRNA, rRNA et al.
-unwantedTypes <- c("tRNA", "rRNA", "pseudogenic_tRNA")
-toBeFilteredOutGR <- NipNCBIAnnot[NipNCBIAnnot$type %in% unwantedTypes, ]
-
-
-# Filtering out features that overlap with annotation elements that should not be counted.
-featuresOutsideUnwanted <- sstackClustCounts  %outside% toBeFilteredOutGR
-locationFilteringStats <- as.data.frame(table(featuresOutsideUnwanted))
-sstackClustCounts <- sstackClustCounts[featuresOutsideUnwanted, ]
-
-# Checking filtering
-summary(sstackClustCounts)
-```
-
-
-
-```{r locationFiltering, eval= FALSE}
+```{r locationFiltering, eval= TRUE}
 unwantedTypes <- c("tRNA", "rRNA", "pseudogenic_tRNA")
   cat("**** Filtering features with a 'type' field matching one of the following values: ", unwantedTypes, "'. ****\n")
 
@@ -461,22 +416,6 @@ if(length(toBeFilteredOutGR) == 0) {
   summary(sstackClustCounts)
 }
 ```
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 
@@ -554,10 +493,11 @@ https://github.com/PF2-pasteur-fr/SARTools/blob/master/R/majSequences.R
 Here is some info about loci that have the highest counts of mapped reads:
 ```{r, fig.width=10, fig.height=10}
 df <- cbind(
-as.data.frame(mcols(addRefAnnot(querGR = sRnaClusters[row.names(majFeatures)], refGR = refGenes, mcolsToKeep = c("Note"), prefix = "OlapGene_"))),
+as.data.frame(mcols(sRnaClusters[row.names(majFeatures)])),
 majFeatures)
 DT::datatable(df)
 ```
+
 
 Values in the last columns titled with the name of the samples contains the the percentage of reads captures by the corresponding feature in the corresponding library. 
 
@@ -853,11 +793,6 @@ str(mcols(myDEloci))
 ```
 
 
-
-
-
-
-
 # Summary counts of overlap found in annotated features
 
 
@@ -865,7 +800,6 @@ Type of reference features | Count of overlapping DE sRNA clusters
 ---------------------------|-------------------------------------- 
 Gene | `r sum(!is.na(mcols(myDEloci)[ , "OlapGene_Names"]))` 
 Simplified transcript | `r sum(!is.na(mcols(myDEloci)[ , "OlapSimpleTrx_Names"]))` 
-xisRNA | `r sum(!is.na(mcols(myDEloci)[ , "OlapXisRNA_Names"]))` 
 
 
 Total number of DE sRNA clusters : `r length(myDEloci)`
@@ -1005,9 +939,6 @@ _ the list of loci IDs per pattern (with this list one can display interesting t
 
 
 
-**ERRROR HERE -->***
-
-
 ```{r, eval= all(countOfSets > 1, na.rm = TRUE)}
 patterns <- apply(paMA, 1, function(x) paste0(x, collapse = ""))
 
@@ -1135,7 +1066,6 @@ Read-specific info is stored in a list of data frames. Each element of the list 
 ```{r getDElociReadsInfo, warning=FALSE}
 # Remove  'chrC', 'chrM' from seqlevels(myDEloci)
 seqlevels(myDEloci) <- seqlevelsInUse(myDEloci)
-#selectedLociForInspection <-  myDEloci[!is.na(mcols(myDEloci)[ , "OlapXisRNA_Names"])]
 selectedLociForInspection <-  myDEloci
 
 sample2treatMapping <- data.frame(sample = names(bamList), treatment = as.character(mcols(bamList)[, variableOfInterest]))
@@ -1394,7 +1324,7 @@ uniqueReadsSeqsForSelectedLocs <- bplapply(readsInfo, function(x) {
 ```
 
 
-## Expression plot of xisRNA loci across experimental treatments
+## Expression plot of DE sRNA loci across experimental treatments
 
 **May want to omit this step**
 
