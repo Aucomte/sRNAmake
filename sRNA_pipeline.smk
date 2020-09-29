@@ -144,16 +144,16 @@ with open(samplefile, 'r') as f:
 
 # on récupère la liste des traitements et des fastq_name en wildcard
 treatments = []
-fastq_name = []
+sample_name = []
 for key in samples:
     if key[0] == "treatment":
         treatments.append(samples[key])
     if key[0] == "samplename":
-        fastq_name.append(samples[key])
+        sample_name.append(samples[key])
 TREATMENT = unique(list(treatments))
 
 def check_config_file():
-    if checkIfDuplicates_1(fastq_name):
+    if checkIfDuplicates_1(sample_name):
         logger.info("CONFIG FILE CHECKING FAIL : in the DATA section, fastq_dir directory does not exists")
         raise ValueError("CONFIG FILE CHECKING FAIL : in the DATA section, fastq_dir directory does not exists")
 
@@ -161,7 +161,7 @@ def check_config_file():
 ## ????????? IDEALLY WOULD NEED TO CHECK THAT NONE OF THE VALUES OF samplename
 ## ????????? IN sampleInfo FILE ARE DUPLICATED BECAUSE THIS IS AN IMPLICIT
 ## ????????? ASSUMPTION AND IF IT HAPPENED IT WOULD BREAK THE PIPELINE
-FASTQ_NAME = unique(list(fastq_name))
+SAMPLE_NAME = unique(list(sample_name))
 
 ################################
 
@@ -228,8 +228,8 @@ rule run_fastp:
     params:
         options = config["PARAMS"]["FASTP"]["options"]
     output:
-        output_html = f"{out_dir}/0_QC/{{fastq}}_fastp_report.html",
-        output_json = f"{out_dir}/0_QC/{{fastq}}_fastp_report.json",
+        output_html = f"{out_dir}/0_QC/{{fastq}}_fastp.html",
+        output_json = f"{out_dir}/0_QC/{{fastq}}_fastp.json",
         fastq_trimmed =  f"{out_dir}/0_QC/{{fastq}}_trimmed.fastq"
     log:
         error = f"{log_dir}/run_fastp/{{fastq}}_fastp.e",
@@ -275,7 +275,7 @@ rule generate_fastqtrimmed_info:
     """
     threads: get_threads('generate_fastqtrimmed_info', 1)
     input:
-        fastp_files = expand(f"{out_dir}/0_QC/{{fastq}}_trimmed.fastq", fastq = FASTQ_NAME),
+        fastp_files = expand(f"{out_dir}/0_QC/{{fastq}}_trimmed.fastq", fastq = SAMPLE_NAME),
         samplefile = samplefile
     params:
         outdir = f"{out_dir}/0_QC/"
@@ -420,7 +420,7 @@ rule generate_bamfile_info:
     """
     threads: get_threads('generate_bamfile_info', 1)
     input:
-        bam_files = expand(rules.run_mapping.output.sorted_bam_file, fastq = FASTQ_NAME),
+        bam_files = expand(rules.run_mapping.output.sorted_bam_file, fastq = SAMPLE_NAME),
         samplefile = samplefile
     params:
         outdir = f"{out_dir}/2_mapping_sRNA/"
@@ -477,7 +477,7 @@ rule samtools_merge_treatment:
     """
     threads: get_threads('samtools_merge_treatment', 1)
     input:
-            lien = expand(f"{out_dir}/2_mapping_sRNA/{{fastq}}.sorted.bam",fastq = FASTQ_NAME),
+            lien = expand(f"{out_dir}/2_mapping_sRNA/{{fastq}}.sorted.bam",fastq = SAMPLE_NAME),
             bamfile = rules.generate_bamfile_info.output.out_file,
     params:
             bam_list = f"{out_dir}/2_mapping_sRNA/List_bamfiles_{{treatment}}",
@@ -516,7 +516,7 @@ rule samtools_merge:
     """
     threads: get_threads('samtools_merge', 1)
     input:
-            all_bam = expand(rules.run_mapping.output.sorted_bam_file, fastq = FASTQ_NAME)
+            all_bam = expand(rules.run_mapping.output.sorted_bam_file, fastq = SAMPLE_NAME)
     params:
             bam_dir_ls  = f"ls {out_dir}/2_mapping_sRNA/*.sorted.bam > {out_dir}/2_mapping_sRNA/bamlist", ## WHY NOT DO THAT DIRECTLY IN THE SHELL CODE OF THE RULE?
             bam_list = f"{out_dir}/2_mapping_sRNA/bamlist"
@@ -667,12 +667,12 @@ rule multiqc:
     """
     threads: get_threads("multiqc", 1)
     input:
-        expand(f"{out_dir}/0_QC/{{fastq}}_fastp_report.html", fastq = FASTQ_NAME),
-        expand(f"{out_dir}/0_QC/fastqc/{{fastq}}_raw_fastqc.html", fastq = FASTQ_NAME),
-        expand(f"{out_dir}/0_QC/fastqc/{{fastq}}_trimmed_fastqc.html", fastq = FASTQ_NAME),
-        expand(f"{out_dir}/2_mapping_sRNA/{{fastq}}.sorted.bam.bamStats.txt", fastq = FASTQ_NAME),
-        expand(f"{out_dir}/2_mapping_sRNA/{{fastq}}.sorted.bam.idxstats.log", fastq = FASTQ_NAME),
-        expand(f"{out_dir}/2_mapping_sRNA/{{fastq}}.sorted.bam.flagstat.log", fastq = FASTQ_NAME),
+        expand(f"{out_dir}/0_QC/{{fastq}}_fastp.json", fastq = SAMPLE_NAME),
+        expand(f"{out_dir}/0_QC/fastqc/{{fastq}}_raw_fastqc.html", fastq = SAMPLE_NAME),
+        expand(f"{out_dir}/0_QC/fastqc/{{fastq}}_trimmed_fastqc.html", fastq = SAMPLE_NAME),
+        expand(f"{out_dir}/2_mapping_sRNA/{{fastq}}.sorted.bam.bamStats.txt", fastq = SAMPLE_NAME),
+        expand(f"{out_dir}/2_mapping_sRNA/{{fastq}}.sorted.bam.idxstats.log", fastq = SAMPLE_NAME),
+        expand(f"{out_dir}/2_mapping_sRNA/{{fastq}}.sorted.bam.flagstat.log", fastq = SAMPLE_NAME),
     output:
         f"{out_dir}/6_MULTIQC/multiqc.html"
     log:

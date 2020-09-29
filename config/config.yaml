@@ -5,16 +5,16 @@
 # Input output data options
 'DATA':
     'directories':
-        'fastq_dir': "/data/projects/rymv_xantho_smallrna/pipeline_srnas/DATA2/fastq"       # samples dir with fastq
-        'out_dir': "/data/projects/rymv_xantho_smallrna/pipeline_srnas/output5rpm"       # Out directory
-        'references_dir': "/data/projects/rymv_xantho_smallrna/pipeline_srnas/DATA2/ref"
+        'fastq_dir': "/data/projects/rymv_xantho_smallrna/srnamake/DATA2/fastq"       # samples dir with fastq
+        'out_dir': "/data/projects/rymv_xantho_smallrna/srnamake/output5rpm"       # Out directory
+        'references_dir': "/data/projects/rymv_xantho_smallrna/srnamake/DATA2/ref"
     'fasta_suffix': 'fasta'                                # file termination
     'files':
-        'annotation': "/data/projects/rymv_xantho_smallrna/pipeline_srnas/DATA2/annotation/RiceRymv.gff3"
-        'miRNA_gff' : '/data/projects/rymv_xantho_smallrna/pipeline_srnas/DATA2/annotation/miRBase_MSU7_MIR.gff3'
-        'sample_info': "/data/projects/rymv_xantho_smallrna/pipeline_srnas/DATA2/sample_info.txt"
-        'de_comparisons_file': "/data/projects/rymv_xantho_smallrna/pipeline_srnas/DATA2/treatmentsComparisons_2012.csv"
-        'filter_gff': "/data/projects/rymv_xantho_smallrna/pipeline_srnas/DATA2/Oryza_sativa_genomic_refseq_IRGSP_seqlevels.gff3"
+        'annotation': "/data/projects/rymv_xantho_smallrna/srnamake/DATA2/annotation/RiceRymv.gff3"
+        'miRNA_gff' : '/data/projects/rymv_xantho_smallrna/srnamake/DATA2/annotation/miRBase_MSU7_MIR.gff3'
+        'sample_info': "/data/projects/rymv_xantho_smallrna/srnamake/DATA2/sample_info.txt"
+        'de_comparisons_file': "/data/projects/rymv_xantho_smallrna/srnamake/DATA2/treatmentsComparisons.csv"
+        'filter_gff': "/data/projects/rymv_xantho_smallrna/srnamake/DATA2/Oryza_sativa_genomic_refseq_IRGSP_seqlevels.gff3"
 #NASID: "NAS2"
 
 ################################
