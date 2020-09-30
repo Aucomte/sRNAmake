@@ -169,8 +169,8 @@ knitr::kable(sampleInfoBam)
 
 ```{r mappingContainers}
 # Create object containers for bam files
-bamFiles <- sampleInfoBam$FileName
-names(bamFiles) <- sampleInfoBam$SampleName
+bamFiles <- sampleInfoBam$filename
+names(bamFiles) <- sampleInfoBam$samplename
 bamList <- BamFileList(bamFiles, asMates = FALSE,  yieldSize=100000) # BEWARE OF YIELD!!!!
 
 # Include experimental setup in the object
