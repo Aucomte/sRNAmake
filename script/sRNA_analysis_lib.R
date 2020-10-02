@@ -53,7 +53,8 @@ os.chr.sizes <- c(
   "chrC" = 134525,
   "chrM" = 490520,
   "ChrUn" = 633585,
-  "ChrSy" = 592136)
+  "ChrSy" = 592136,
+  "Chr13" = 4513)
 
 library(GenomicRanges)
 chrominfo <- Seqinfo(seqnames = names(os.chr.sizes),

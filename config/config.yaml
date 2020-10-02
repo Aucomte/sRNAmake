@@ -10,7 +10,7 @@
         'references_dir': "/data/projects/rymv_xantho_smallrna/srnamake/DATA2/ref"
     'fasta_suffix': 'fasta'                                # file termination
     'files':
-        'annotation': "/data/projects/rymv_xantho_smallrna/srnamake/DATA2/annotation/RiceRymv.gff3"
+        'annotation': "/data/projects/rymv_xantho_smallrna/srnamake/DATA2/annotation/riceNUCMSU7.gtf"
         'miRNA_gff' : '/data/projects/rymv_xantho_smallrna/srnamake/DATA2/annotation/miRBase_MSU7_MIR.gff3'
         'sample_info': "/data/projects/rymv_xantho_smallrna/srnamake/DATA2/sample_info.txt"
         'de_comparisons_file': "/data/projects/rymv_xantho_smallrna/srnamake/DATA2/treatmentsComparisons.csv"
