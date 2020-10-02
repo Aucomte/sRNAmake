@@ -687,7 +687,7 @@ rule multiqc:
         # scratch
         # enlever cat_gtf pour l'instant --> un gtf faire a la main
         # fastqc --> pas la wildcard fastq mais le nom du chemin en sortie
-
+        # Try to get ride of chromInfo in sRNA_DE_analysis.rmd using genome_sequence_file
         # trim parameter in config for the user to decide if trimming should be executed?
         # Logs: I believe it is more desirable to have both stdout and stderr in the same file, could use the trick employed in baseDmux to simplify coding
 

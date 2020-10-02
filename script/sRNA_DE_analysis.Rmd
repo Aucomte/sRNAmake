@@ -243,6 +243,11 @@ NOTE: seqinfo information for all objects is set to the same info provided in th
 ### Reference genome annotation and sequence
 
 ```{r refGenomeAnnot}
+## GET RIDE OF chrominfo and rely on fasta file:
+# indexFa(fafile, ...) # OUTPUT location?
+#  Rsamtools::seqinfo(fafile)
+
+
 genomeAnnotDB <- makeTxDbFromGFF(genomeGffFile, chrominfo = chrominfo )
 refGenes <- GenomicFeatures::genes(genomeAnnotDB)
 simplifiedRefTx <- reduce(exonsBy(genomeAnnotDB, by = "gene"))
