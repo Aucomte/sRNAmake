@@ -37,31 +37,31 @@ myLoadInstall <- function(packageNames, lib) {
 
 
 #### O. sativa chromosome (IRGSP1.0) Seqinfo object ####
-os.chr.sizes <- c(
-  "Chr1" = 43270923,
-  "Chr2" = 35937250,
-  "Chr3" = 36413819,
-  "Chr4" = 35502694,
-  "Chr5" = 29958434,
-  "Chr6" = 31248787,
-  "Chr7" = 29697621,
-  "Chr8" = 28443022,
-  "Chr9" = 23012720,
-  "Chr10" = 23207287,
-  "Chr11" = 29021106,
-  "Chr12" = 27531856,
-  "chrC" = 134525,
-  "chrM" = 490520,
-  "ChrUn" = 633585,
-  "ChrSy" = 592136,
-  "Chr13" = 4513)
-
-library(GenomicRanges)
-chrominfo <- Seqinfo(seqnames = names(os.chr.sizes),
-                     seqlengths=os.chr.sizes ,
-                     isCircular=rep(FALSE, length(os.chr.sizes)),
-                     genome="IRGSP-1.0")
-isCircular(chrominfo)[c("chrC", "chrM")] <- TRUE
+# os.chr.sizes <- c(
+#   "Chr1" = 43270923,
+#   "Chr2" = 35937250,
+#   "Chr3" = 36413819,
+#   "Chr4" = 35502694,
+#   "Chr5" = 29958434,
+#   "Chr6" = 31248787,
+#   "Chr7" = 29697621,
+#   "Chr8" = 28443022,
+#   "Chr9" = 23012720,
+#   "Chr10" = 23207287,
+#   "Chr11" = 29021106,
+#   "Chr12" = 27531856,
+#   "chrC" = 134525,
+#   "chrM" = 490520,
+#   "ChrUn" = 633585,
+#   "ChrSy" = 592136,
+#   "Chr13" = 4513)
+# 
+# library(GenomicRanges)
+# chrominfo <- Seqinfo(seqnames = names(os.chr.sizes),
+#                      seqlengths=os.chr.sizes ,
+#                      isCircular=rep(FALSE, length(os.chr.sizes)),
+#                      genome="IRGSP-1.0")
+# isCircular(chrominfo)[c("chrC", "chrM")] <- TRUE
 
 
 
@@ -330,8 +330,8 @@ plotDE <- function( res ) {
 
 # Filter output for diff accum elements in DESeq
 nbinomTestFilt <- function(cds, condA, condB, min.lfc = log2(2), maxAdjPval = 0.05) {
-  library("DESeq")
-  res <- nbinomTest(cds=cds, condA=condA, condB=condB)
+#  library("DESeq")
+  res <- DESeq::nbinomTest(cds=cds, condA=condA, condB=condB)
   res[!is.na(res$log2FoldChange) & res$padj <= maxAdjPval & abs(res$log2FoldChange) >= min.lfc , ]
 }
 
@@ -361,7 +361,7 @@ mergeNBinomTestResults <- function (cds, comps, min.lfc = 2, maxAdjPval = 0.05) 
 
 performDESeqBinCompPipeline <- function(cdsetOlap, min.lfc = 0, maxAdjPval = 1,  comparisons,
                                         method = "pooled", fitType = "local") {
-  library("DESeq")
+  #library("DESeq")
 # Estimate the effective library size, i.e., correct for seq depth discrepencies
   cdsetOlap <- DESeq::estimateSizeFactors(cdsetOlap)
   print(sizeFactors(cdsetOlap))
@@ -371,7 +371,7 @@ performDESeqBinCompPipeline <- function(cdsetOlap, min.lfc = 0, maxAdjPval = 1, 
 
   # save(cdsetOlap, file = "cdsetOlap.Rdata") # save an image of the CountDataSet object on disk
 
-   print(plotDispEsts(cdsetOlap))
+   print(DESeq::plotDispEsts(cdsetOlap))
   ##   Calling differential expression
 # Actual tests for differential expression in the case of RNA-Seq
 # perform comparisons for conditions of interest.
