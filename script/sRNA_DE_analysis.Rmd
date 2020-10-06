@@ -100,6 +100,14 @@ accessoryFuncFile <- file.path(normalizePath(path = "./script", mustWork = TRUE)
 
 # Instantiating input and configuration objects
 
+## Printing parameter values provided for this run
+
+```{r print snakemake object content}
+str(snakemake)
+```
+
+
+
 ## Loading required packages and function definitions
 
 ```{r install and load R packages and functions}
