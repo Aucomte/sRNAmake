@@ -21,7 +21,7 @@
 # Params for tools:
 PARAMS:
     FASTP:
-        options: "" # Carefull ! Quality trimming and adaptater removal is enabled by default.
+        options: "-A -L -Q -G" # Carefull ! Quality trimming and adaptater removal is enabled by default.
     BWA_ALN:
         options: ""
     SHORTSTACK:
