@@ -32,6 +32,7 @@ git push
 
 ```{r knitrGlobalOpt}
 knitr::opts_chunk$set(dev='CairoPNG')
+options(knitr.table.format = "markdown")
 ```
 
 
@@ -126,6 +127,14 @@ accessoryFuncFile <- file.path(normalizePath(path = "./script", mustWork = TRUE)
 
 
 # Instantiating input and configuration objects
+
+## Printing parameter values provided for this run
+
+```{r print snakemake object content}
+str(snakemake)
+```
+
+
 
 ## Loading required packages and function definitions
 
@@ -270,10 +279,12 @@ NOTE: seqinfo information for all objects is set to the same info provided in th
 ### Reference genome annotation and sequence
 
 ```{r refGenomeAnnot}
+refGenomeSeq <-FaFile(genomeFastaFile)
+genomeFastaIndexFile <- indexFa(genomeFastaFile)
+chrominfo <- Rsamtools::seqinfo(refGenomeSeq)
 genomeAnnotDB <- makeTxDbFromGFF(genomeGffFile, chrominfo = chrominfo )
 refGenes <- GenomicFeatures::genes(genomeAnnotDB)
 simplifiedRefTx <- reduce(exonsBy(genomeAnnotDB, by = "gene"))
-refGenomeSeq <-FaFile(genomeFastaFile)
 ```
 
 
@@ -283,11 +294,11 @@ refGenomeSeq <-FaFile(genomeFastaFile)
 
 
 ```{r shortStackClustersAnnot}
-  sRnaClusters <- rtracklayer::import.gff3(sstackGffFile)
-  newsi <- GenomeInfoDb::merge(chrominfo, seqinfo(sRnaClusters))
-  seqinfo(sRnaClusters, new2old = match(seqnames(newsi), seqlevels(sRnaClusters))) <- newsi
-  names(sRnaClusters) <- GRanges2GBrowser(sRnaClusters)
-  mcols(sRnaClusters)$id <- names(sRnaClusters)
+sRnaClusters <- rtracklayer::import.gff3(sstackGffFile)
+newsi <- GenomeInfoDb::merge(chrominfo, seqinfo(sRnaClusters))
+seqinfo(sRnaClusters, new2old = match(seqnames(newsi), seqlevels(sRnaClusters))) <- newsi
+names(sRnaClusters) <- GRanges2GBrowser(sRnaClusters)
+mcols(sRnaClusters)$id <- names(sRnaClusters)
 ```
 
 
@@ -345,14 +356,14 @@ bamTag(qcBamParam)  <- c("NM", "AS", "X0", "XT","XA")
 galnList <- bplapply(bamList, readGAlignments, param=qcBamParam, BPPARAM = parallelBackEnd)
 # SHOULD TRY TO //ize that:
 readMapQual <- data.frame()
-    for (i in 1:length(galnList)) {
-        if (!length(galnList[[i]]) == 0) {
-            table <- cbind(
-              as.data.frame(mcols(galnList[[i]])),
-              sample = names(galnList)[i]
-            )
-          readMapQual <- rbind(readMapQual, table) }
-    }
+for (i in 1:length(galnList)) {
+  if (!length(galnList[[i]]) == 0) {
+    table <- cbind(
+      as.data.frame(mcols(galnList[[i]])),
+      sample = names(galnList)[i]
+    )
+    readMapQual <- rbind(readMapQual, table) }
+}
 yieldSize(bamList) <- NA
 #write.csv(readMapQual, file = "QC_readMapQual.csv")
 
@@ -450,9 +461,9 @@ if(length(toBeFilteredOutGR) == 0) {
 **Reporting in filtering results:**
 
 - Counts of features removed based on low total reads count
-`r knitr::kable(abundFilteringStats)`
+`r knitr::kable(abundFilteringStats, format = "markdown")`
 - Counts of features removed because they overlapped with tRNA, rRNA, ... elements
-`r knitr::kable(locationFilteringStats)`
+`r knitr::kable(locationFilteringStats, format = "markdown")`
 
 ## Saving count data as a csv file and a Rdata file.
 
@@ -559,11 +570,19 @@ Borrowed code from:
 
 
 ```{r eval= replicated}
-suppressPackageStartupMessages(library("DESeq2"))
-deseq2Output <- runDESeq2(se = sstackClustCounts, varInt = variableOfInterest, batch = batch, comps = comparisons, 
-                          locfunc=locfunc,  fitType=fitType, sizeFactEstimMethod = sizeFactEstimMethod, pAdjustMethod=pAdjustMethod,
-                          cooksCutoff=cooksCutoff, independentFiltering=independentFiltering, alpha=alpha,
-                          lfcThreshold = lfcThreshold, altHypothesis = altHypothesis)
+deseq2Output <- runDESeq2(se = sstackClustCounts,
+                          varInt = variableOfInterest,
+                          batch = batch,
+                          comps = comparisons, 
+                          locfunc=locfunc,
+                          fitType=fitType,
+                          sizeFactEstimMethod = sizeFactEstimMethod,
+                          pAdjustMethod=pAdjustMethod,
+                          cooksCutoff=cooksCutoff,
+                          independentFiltering=independentFiltering,
+                          alpha=alpha,
+                          lfcThreshold = lfcThreshold,
+                          altHypothesis = altHypothesis)
 ```
 
 **NB!! Parameter values for differential accumulation testing with DESeq2**:
@@ -603,7 +622,7 @@ suppressPackageStartupMessages(library("DESeq"))
 sstackClustCDSet <- DESeq::newCountDataSet(countData=assays(sstackClustCounts)$counts, conditions=colData(sstackClustCounts)[, variableOfInterest])
 
 AllLociExprStats <- performDESeqBinCompPipeline(sstackClustCDSet, method = "blind",
-		comparisons = comparisons, min.lfc = 0, maxAdjPval = 1)
+    comparisons = comparisons, min.lfc = 0, maxAdjPval = 1)
 ```
 
 
@@ -796,7 +815,17 @@ DELociExprStats <- subset(AllLociExprStats, subset = abs(padj) <= maxAdjPval & a
 ```
 
 
-```{r}
+```{r check DELociExprStats and Create a GRanges container with DE loci}
+
+if(nrow(DELociExprStats) < 1) {
+  cat(" ## It appears that the set of features detected as differentially expressed is empty!!\n",
+      "## You may want to use a less stringent set of DE parameters.\n",
+      "## Quitting...")
+  sessionInfo()
+  quit(save = "no", status = 0, runLast = TRUE)
+}
+
+
 # Create a GRanges container with the list of Diff accumulating loci obtained after DESeq analysis
 # GRanges in myDEloci are unique.
 # myDEloci will hold in its mcols features that are specific to the loci and the reads mapping to these loci
