@@ -822,7 +822,8 @@ if(nrow(DELociExprStats) < 1) {
       "## You may want to use a less stringent set of DE parameters.\n",
       "## Quitting...")
   sessionInfo()
-  quit(save = "no", status = 0, runLast = TRUE)
+  save.image(file = file.path(outDir, "sRNA_analysis_workspace.RData"))
+  knitr::knit_exit()
 }
 
 
