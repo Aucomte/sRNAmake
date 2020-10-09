@@ -1,4 +1,4 @@
-quit()
+
 ---
 title: "sRNA_Analysis_Report"
 author: "Seb"
@@ -39,19 +39,19 @@ options(knitr.table.format = "markdown")
 
 ```{r getting parameters from snakemake object}
 # # #############   INITIAL TESTING  ################
-# sampleInfoBamFiles <- "/data/projects/rymv_xantho_smallrna/seb/bai3_dataset_output/2_mapping_sRNA/bamfile_info.txt"
+## sampleInfoBamFiles <- "/data/projects/rymv_xantho_smallrna/seb/bai3_dataset_output/2_mapping_sRNA/bamfile_info.txt"
 # genomeGffFile <- "/data/projects/rymv_xantho_smallrna/seb/bai3_dataset_output/1_cat_gtf/all_gtf.gtf"
 # genomeFastaFile <- "/data/projects/rymv_xantho_smallrna/seb/bai3_dataset_output/1_cat_ref/all_ref.fa"
-# sstackGffFile <- "/data/projects/rymv_xantho_smallrna/seb/bai3_dataset_output/4_ShortStack/ShortStack_All_miRNA.gff3"
+## sstackGffFile <- "/data/projects/rymv_xantho_smallrna/seb/bai3_dataset_output/4_ShortStack/ShortStack_All_miRNA.gff3"
 # ncores <- 6 # snakemake@threads
 # outDir <- "/data/projects/rymv_xantho_smallrna/seb/bai3_dataset_output/5_sRNA_loci_DE_analysis"
 # invisible(dir.exists(outDir) || dir.create(path = outDir, mode = "770"))
 # comparisonsFile <- "/data3/projects/pixies/scripts/treatmentsComparisons_2012.csv"
 # filterGffFile <- "/data3/projects/pixies/reference_genomic_data/NB_genome/Oryza_sativa_genomic_refseq_IRGSP_seqlevels.gff3"
-# # feature filtering based on total read counts
+ # feature filtering based on total read counts
 # minRowSumTreshold <- 30 # snakemake@params[["minRowSumTreshold"]]
-# # DESeq2 fonctions parameters values
-# variableOfInterest <- "Treatment"
+ # DESeq2 fonctions parameters values
+# variableOfInterest <- "Treatment"#
 # batch <- "Experiment"
 # locfunc <- "shorth" # "median" #
 # fitType <- "parametric"
@@ -59,18 +59,18 @@ options(knitr.table.format = "markdown")
 # pAdjustMethod <- "BH"
 # cooksCutoff <- TRUE #! as.logical
 # independentFiltering <- FALSE #! as.logical
-# lfcThreshold <- 2 #! as.numeric
+# lfcThreshold <- 1 #! as.numeric
 # altHypothesis <- "greaterAbs"
 # alpha <- 0.05 #! as.numeric
-# # DESeq2 VSR transformation method
-# typeTrans <- "rlog"
+ # DESeq2 VSR transformation method
+ #typeTrans <- "rlog"
 
-#sampleInfoBamFiles <- "/data/projects/rymv_xantho_smallrna/srnamake/output2rpm/2_mapping_sRNA/bamfile_info.txt"
+#sampleInfoBamFiles <- "/data/projects/rymv_xantho_smallrna/srnamake/output2rpm_filtered/2_mapping_sRNA/bamfile_info.txt"
 #genomeGffFile <- "/data/projects/rymv_xantho_smallrna/srnamake/DATA2/annotation/RiceRYMV2.gtf"
-#genomeFastaFile <- "/data/projects/rymv_xantho_smallrna/srnamake/output2rpm/1_cat_ref/all_ref.fa"
-#sstackGffFile <- "/data/projects/rymv_xantho_smallrna/srnamake/output2rpm/4_ShortStack/ShortStack_All_miRNA.gff3"
+#genomeFastaFile <- "/data/projects/rymv_xantho_smallrna/srnamake/output2rpm_filtered/1_cat_ref/all_ref.fa"
+#sstackGffFile <- "/data/projects/rymv_xantho_smallrna/srnamake/output2rpm_filtered/4_ShortStack/ShortStack_All_miRNA.gff3"
 #ncores <- 6 # snakemake@threads
-#outDir <- "/data/projects/rymv_xantho_smallrna/srnamake/output2rpm/5_sRNA_loci_DE_analysis_test"
+#outDir <- "/data/projects/rymv_xantho_smallrna/srnamake/output2rpm_filtered/5_sRNA_loci_DE_analysis_test"
 #invisible(dir.exists(outDir) || dir.create(path = outDir, mode = "770"))
 #comparisonsFile <- "/data/projects/rymv_xantho_smallrna/srnamake/DATA2/treatmentsComparisons.csv"
 #filterGffFile <- "/data/projects/rymv_xantho_smallrna/srnamake/DATA2/Oryza_sativa_genomic_refseq_IRGSP_seqlevels.gff3"
@@ -85,10 +85,10 @@ options(knitr.table.format = "markdown")
 #pAdjustMethod <- "BH"
 #cooksCutoff <- TRUE #! as.logical
 #independentFiltering <- FALSE #! as.logical
-#lfcThreshold <- 1 #! as.numeric
+# lfcThreshold <- 1 #! as.numeric
 #altHypothesis <- "greaterAbs"
 #alpha <- 0.05 #! as.numeric
-# # DESeq2 VSR transformation method
+ # DESeq2 VSR transformation method
 #typeTrans <- "rlog"
 
 # #################################################################################
@@ -1012,7 +1012,7 @@ mcols(myDEloci) <- mcols(myDEloci) <- tmp[match(names(myDEloci), tmp$id),]
 ### Model-based automatic clustering
 
 
-```{r mClustDEloci, eval = all(replicated, na.rm = TRUE), fig.height=8, fig.width=8}
+```{r mClustDEloci, eval = all(replicated,countOfSets > 1, na.rm = TRUE), fig.height=8, fig.width=8}
 
 # Transfroming again raw data but this time takin the experimental design into account
 if (typeTrans == "VST") {
@@ -1038,7 +1038,7 @@ mcols(myDEloci) <- mcols(myDEloci) <- tmp[match(names(myDEloci), tmp$id),]
 
 ### Plotting expression heatmap with model clustering
 
-```{r DElociExpressionHeatMap, eval = all(replicated, na.rm = TRUE), fig.width= 12, fig.height= 14}
+```{r DElociExpressionHeatMap, eval = all(replicated, countOfSets > 1, na.rm = TRUE), fig.width= 12, fig.height= 14}
 # Making heatmap annotation with the clustering data for loci
 annotFactor <- factor(lociExpClust$classification)
 loci_annot <- HeatmapAnnotation(MCluster = annotFactor, show_annotation_name = TRUE,
