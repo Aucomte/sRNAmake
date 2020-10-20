@@ -1,10 +1,16 @@
 # sRNAmake
 
-## Pipeline :
+## Table of contents
+1. [Introduction](#introduction)
+2. [Prepare inputs](#config)
+3. [Launch the pipeline](#launch)
+4. [The outputs](#outputs)
+
+## Introduction <a name="introduction"></a>:
 
 ![schema pipeline](images/schema_pipeline_global.png)
 
-## Prepare config.yaml :
+## Prepare config.yaml <a name="config"></a>:
 
  - ### inputs :
  
@@ -102,5 +108,52 @@ However, you should build the Singularity container in sudo using the command be
 ```
 singularity build /path/to/simg/out.simg /path/to/def/in.def
 ```
+
+## How to lauch the pipeline ? <a name="launch"></a>
+
+### LOCAL
+
+### CLUSTER (With Slurm)
+
+```
+Sbatch Laucher_slurm.sh
+```
+
+- the file config/cluster_config_slurm.yaml:
+
+You can change the way to lauch each rule. If nothing is indicated for a specific rule, it will launch itself with the default.
+
+```
+__default__:
+    cpus-per-task : 2
+    ntasks : 1
+    mem-per-cpu : '4'
+    partition : "normal"
+    output : 'logs/stdout/{rule}/{wildcards}'
+    error : 'logs/error/{rule}/{wildcards}'
+
+bwa_index:
+    ntasks : 1
+    cpus-per-task : 4
+    mem-per-cpu : '4'
+    partition : "normal"
+    output : 'logs/stdout/{rule}/{wildcards}'
+    error : 'logs/error/{rule}/{wildcards}'
+```
+
+## The outputs <a name="outputs"></a>
+
+```
+1_QC
+2_mapping_sRNA
+3_merge_bam_sRNA
+4_ShortStack
+5_sRNA_loci_DE_analysis
+6_MULTIQC
+LOGS
+report
+slurm_log
+```
+
 
 
