@@ -6,7 +6,7 @@
 'DATA':
     'directories':
         'fastq_dir': "/data/projects/rymv_xantho_smallrna/srnamake/DATA2/fastq"       # samples dir with fastq
-        'out_dir': "/data/projects/rymv_xantho_smallrna/srnamake/output2rpm"       # Out directory
+        'out_dir': "/data/projects/rymv_xantho_smallrna/srnamake/output1rpm"       # Out directory
     'fasta_suffix': 'fa'                                # file termination
     'files':
         'reference': "/data/projects/rymv_xantho_smallrna/srnamake/DATA2/ref/RiceRYMV2.fasta"
@@ -21,7 +21,7 @@
 # Params for tools:
 PARAMS:
     FASTP:
-	    options: "--overrepresentation_analysis --length_required 18 --length_limit 30"
+        options: "--overrepresentation_analysis --length_required 18 --length_limit 30"
         #options: "-A -Q -L -G --overrepresentation_analysis"
     BWA_ALN:
         options: ""

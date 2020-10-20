@@ -287,8 +287,8 @@ rule bwa_index:
     output:
             sa_file = f"{reference_path}.sa"
     log:
-            error = f"{log_dir}/bwa_Index/{reference_path}.e",
-            output = f"{log_dir}/bwa_Index/{reference_path}.o"
+            error = f"{log_dir}/bwa_Index/ref.e",
+            output = f"{log_dir}/bwa_Index/ref.o"
     message:
             f"""
             {sep*108}
