@@ -8,6 +8,9 @@
 
 ## Introduction <a name="introduction"></a>:
 
+sRNAmake is a pipeline of analyse of smallRNA using ShortStack and Deseq2.
+
+
 ![schema pipeline](images/schema_pipeline_global.png)
 
 ## Prepare config.yaml <a name="config"></a>:
@@ -58,6 +61,8 @@ RYMV;MOCK
 
  - ### parameters :
 
+Tools parameters can be changed in the config.yaml file.
+
 ```
 PARAMS:
     FASTP:
@@ -90,6 +95,9 @@ PARAMS:
         # DESeq2 VSR transformation method
         typeTrans: "rlog"
 ```
+*tips:*
+- *To make fewer and bigger clusters, use a mincov bigger for ShortStack parameters*
+- *To be less stringent for the DE analysis, decrease lfcThreshold value and increase alpha value*
 
 - ###The containers:
 
@@ -112,6 +120,18 @@ singularity build /path/to/simg/out.simg /path/to/def/in.def
 ## How to lauch the pipeline ? <a name="launch"></a>
 
 ### LOCAL
+
+```
+snakemake --use-singularity --use-conda --nolock --cores -p --verbose -s sRNA_pipeline.smk --latency-wait 500 --keep-going --restart-times 1 --rerun-incomplete  --configfile config/config.yaml
+```
+
+### LOCAL on a node of itrop cluster
+
+```
+module load system/singularity/3.3.0
+module load system/python/3.7.2
+snakemake --use-singularity --use-conda --nolock --cores -p --verbose -s sRNA_pipeline.smk --latency-wait 500 --keep-going --restart-times 1 --rerun-incomplete  --configfile config/config.yaml
+```
 
 ### CLUSTER (With Slurm)
 
