@@ -186,7 +186,7 @@ rule run_Fastqc:
     input:
         fastq = get_fastq
     output:
-        html_fastqc = f"{out_dir}/0_QC/fastqc/{{fastq}}_raw_fastqc.html"
+        html_fastqc = f"{out_dir}/1_QC/fastqc/{{fastq}}_raw_fastqc.html"
     log:
         error = f"{log_dir}/run_Fastqc/{{fastq}}.e",
         output = f"{log_dir}/run_Fastqc/{{fastq}}.o"
@@ -196,9 +196,9 @@ rule run_Fastqc:
             "envs/quality.yaml"
     shell:
          """
-         fastqc -o {out_dir}/0_QC/fastqc -t {threads} {input.fastq}
+         fastqc -o {out_dir}/1_QC/fastqc -t {threads} {input.fastq}
          infilename=$(basename {input.fastq})
-         fastqcOutFilePath="{out_dir}/0_QC/fastqc/${{infilename%%.*}}"_fastqc.html
+         fastqcOutFilePath="{out_dir}/1_QC/fastqc/${{infilename%%.*}}"_fastqc.html
          finalOutFilePath="{output.html_fastqc}"
          ## RUN ONLY IF SOURCE AND DEST ARE DIFFERENT PATHS 
          [[ "$fastqcOutFilePath" == "$finalOutFilePath" ]] || mv "$fastqcOutFilePath" "$finalOutFilePath"
@@ -219,9 +219,9 @@ rule run_fastp:
     params:
         options = config["PARAMS"]["FASTP"]["options"]
     output:
-        output_html = f"{out_dir}/0_QC/{{fastq}}_fastp.html",
-        output_json = f"{out_dir}/0_QC/{{fastq}}_fastp.json",
-        fastq_trimmed =  f"{out_dir}/0_QC/{{fastq}}_trimmed.fastq"
+        output_html = f"{out_dir}/1_QC/{{fastq}}_fastp.html",
+        output_json = f"{out_dir}/1_QC/{{fastq}}_fastp.json",
+        fastq_trimmed =  f"{out_dir}/1_QC/{{fastq}}_trimmed.fastq"
     log:
         error = f"{log_dir}/run_fastp/{{fastq}}_fastp.e",
         output = f"{log_dir}/run_fastp/{{fastq}}_fastp.o"
@@ -240,9 +240,9 @@ rule run_Fastqc_trimmed:
     """
     threads: get_threads("run_Fastqc", 1)
     input:
-        fastq = f"{out_dir}/0_QC/{{fastq}}_trimmed.fastq"
+        fastq = f"{out_dir}/1_QC/{{fastq}}_trimmed.fastq"
     output:
-        html_fastqc = f"{out_dir}/0_QC/fastqc/{{fastq}}_trimmed_fastqc.html"
+        html_fastqc = f"{out_dir}/1_QC/fastqc/{{fastq}}_trimmed_fastqc.html"
     log:
         error = f"{log_dir}/run_Fastqc/{{fastq}}.e",
         output = f"{log_dir}/run_Fastqc/{{fastq}}.o"
@@ -252,9 +252,9 @@ rule run_Fastqc_trimmed:
             "envs/quality.yaml"
     shell:
          """
-         fastqc -o {out_dir}/0_QC/fastqc -t {threads} {input.fastq}
+         fastqc -o {out_dir}/1_QC/fastqc -t {threads} {input.fastq}
          infilename=$(basename {input.fastq})
-         fastqcOutFilePath="{out_dir}/0_QC/fastqc/${{infilename%%.*}}"_fastqc.html
+         fastqcOutFilePath="{out_dir}/1_QC/fastqc/${{infilename%%.*}}"_fastqc.html
          finalOutFilePath="{output.html_fastqc}"
          ## RUN ONLY IF SOURCE AND DEST ARE DIFFERENT PATHS 
          [[ "$fastqcOutFilePath" == "$finalOutFilePath" ]] || mv "$fastqcOutFilePath" "$finalOutFilePath"
@@ -266,12 +266,12 @@ rule generate_fastqtrimmed_info:
     """
     threads: get_threads('generate_fastqtrimmed_info', 1)
     input:
-        fastp_files = expand(f"{out_dir}/0_QC/{{fastq}}_trimmed.fastq", fastq = SAMPLE_NAME),
+        fastp_files = expand(f"{out_dir}/1_QC/{{fastq}}_trimmed.fastq", fastq = SAMPLE_NAME),
         samplefile = samplefile
     params:
-        outdir = f"{out_dir}/0_QC/"
+        outdir = f"{out_dir}/1_QC/"
     output:
-        out_file = f"{out_dir}/0_QC/fastq_trimmed_info.txt"
+        out_file = f"{out_dir}/1_QC/fastq_trimmed_info.txt"
     script:
         "script/write_fastqtrimmed_info.py"
 
@@ -616,9 +616,9 @@ rule multiqc:
     """
     threads: get_threads("multiqc", 1)
     input:
-        expand(f"{out_dir}/0_QC/{{fastq}}_fastp.json", fastq = SAMPLE_NAME),
-        expand(f"{out_dir}/0_QC/fastqc/{{fastq}}_raw_fastqc.html", fastq = SAMPLE_NAME),
-        expand(f"{out_dir}/0_QC/fastqc/{{fastq}}_trimmed_fastqc.html", fastq = SAMPLE_NAME),
+        expand(f"{out_dir}/1_QC/{{fastq}}_fastp.json", fastq = SAMPLE_NAME),
+        expand(f"{out_dir}/1_QC/fastqc/{{fastq}}_raw_fastqc.html", fastq = SAMPLE_NAME),
+        expand(f"{out_dir}/1_QC/fastqc/{{fastq}}_trimmed_fastqc.html", fastq = SAMPLE_NAME),
         expand(f"{out_dir}/2_mapping_sRNA/{{fastq}}.sorted.bam.bamStats.txt", fastq = SAMPLE_NAME),
         expand(f"{out_dir}/2_mapping_sRNA/{{fastq}}.sorted.bam.idxstats.log", fastq = SAMPLE_NAME),
         expand(f"{out_dir}/2_mapping_sRNA/{{fastq}}.sorted.bam.flagstat.log", fastq = SAMPLE_NAME),

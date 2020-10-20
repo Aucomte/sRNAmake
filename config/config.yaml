@@ -7,9 +7,9 @@
     'directories':
         'fastq_dir': "/data/projects/rymv_xantho_smallrna/srnamake/DATA2/fastq"       # samples dir with fastq
         'out_dir': "/data/projects/rymv_xantho_smallrna/srnamake/output2rpm"       # Out directory
-        'references_dir': "/data/projects/rymv_xantho_smallrna/srnamake/DATA2/ref"
     'fasta_suffix': 'fa'                                # file termination
     'files':
+        'references': "/data/projects/rymv_xantho_smallrna/srnamake/DATA2/ref/RiceRYMV2.fasta"
         'annotation': "/data/projects/rymv_xantho_smallrna/srnamake/DATA2/annotation/RiceRYMV2.gtf"
         'miRNA_gff' : '/data/projects/rymv_xantho_smallrna/srnamake/DATA2/annotation/miRBase_MSU7_MIR.gff3'
         'sample_info': "/data/projects/rymv_xantho_smallrna/srnamake/DATA2/sample_info.txt"
@@ -21,13 +21,14 @@
 # Params for tools:
 PARAMS:
     FASTP:
-        options: "-A -L -Q -G" # Carefull ! Quality trimming and adaptater removal is enabled by default.
+	    options: "--overrepresentation_analysis --length_required 18 --length_limit 30"
+        #options: "-A -Q -L -G --overrepresentation_analysis"
     BWA_ALN:
         options: ""
     SHORTSTACK:
         dicermin: 20
         dicermax: 24
-        mincov: 2rpm
+        mincov: 1rpm
         pad: 75
         foldsize: 300
         strand_cutoff: 0.8
