@@ -65,31 +65,31 @@ options(knitr.table.format = "markdown")
  # DESeq2 VSR transformation method
  #typeTrans <- "rlog"
 
-#sampleInfoBamFiles <- "/data/projects/rymv_xantho_smallrna/srnamake/output2rpm_filtered/2_mapping_sRNA/bamfile_info.txt"
-#genomeGffFile <- "/data/projects/rymv_xantho_smallrna/srnamake/DATA2/annotation/RiceRYMV2.gtf"
-#genomeFastaFile <- "/data/projects/rymv_xantho_smallrna/srnamake/output2rpm_filtered/1_cat_ref/all_ref.fa"
-#sstackGffFile <- "/data/projects/rymv_xantho_smallrna/srnamake/output2rpm_filtered/4_ShortStack/ShortStack_All_miRNA.gff3"
-#ncores <- 6 # snakemake@threads
-#outDir <- "/data/projects/rymv_xantho_smallrna/srnamake/output2rpm_filtered/5_sRNA_loci_DE_analysis_test"
-#invisible(dir.exists(outDir) || dir.create(path = outDir, mode = "770"))
-#comparisonsFile <- "/data/projects/rymv_xantho_smallrna/srnamake/DATA2/treatmentsComparisons.csv"
-#filterGffFile <- "/data/projects/rymv_xantho_smallrna/srnamake/DATA2/Oryza_sativa_genomic_refseq_IRGSP_seqlevels.gff3"
+sampleInfoBamFiles <- "/data/projects/rymv_xantho_smallrna/srnamake/output4rpm_filtered/2_mapping_sRNA/bamfile_info.txt"
+genomeGffFile <- "/data/projects/rymv_xantho_smallrna/srnamake/DATA2/annotation/RiceRYMV2.gtf"
+genomeFastaFile <- "/data/projects/rymv_xantho_smallrna/srnamake/output4rpm_filtered/1_cat_ref/all_ref.fa"
+sstackGffFile <- "/data/projects/rymv_xantho_smallrna/srnamake/output4rpm_filtered/4_ShortStack/ShortStack_All_miRNA.gff3"
+ncores <- 6 # snakemake@threads
+outDir <- "/data/projects/rymv_xantho_smallrna/srnamake/output4rpm_filtered/5_sRNA_loci_DE_analysis_test"
+invisible(dir.exists(outDir) || dir.create(path = outDir, mode = "770"))
+comparisonsFile <- "/data/projects/rymv_xantho_smallrna/srnamake/DATA2/treatmentsComparisons.csv"
+filterGffFile <- "/data/projects/rymv_xantho_smallrna/srnamake/DATA2/Oryza_sativa_genomic_refseq_IRGSP_seqlevels.gff3"
  # feature filtering based on total read counts
-#minRowSumTreshold <- 30 # snakemake@params[["minRowSumTreshold"]]
+minRowSumTreshold <- 30 # snakemake@params[["minRowSumTreshold"]]
  # DESeq2 fonctions parameters values
-#variableOfInterest <- "Treatment"
-#batch <- "Experiment"
-#locfunc <- "shorth" # "median" #
-#fitType <- "parametric"
-#sizeFactEstimMethod <- "iterate" # "ratio" # "poscounts"
-#pAdjustMethod <- "BH"
-#cooksCutoff <- TRUE #! as.logical
-#independentFiltering <- FALSE #! as.logical
-# lfcThreshold <- 1 #! as.numeric
-#altHypothesis <- "greaterAbs"
-#alpha <- 0.05 #! as.numeric
+variableOfInterest <- "Treatment"
+batch <- "Experiment"
+locfunc <- "shorth" # "median" #
+fitType <- "parametric"
+sizeFactEstimMethod <- "iterate" # "ratio" # "poscounts"
+pAdjustMethod <- "BH"
+cooksCutoff <- TRUE #! as.logical
+independentFiltering <- FALSE #! as.logical
+ lfcThreshold <- 1 #! as.numeric
+altHypothesis <- "greaterAbs"
+alpha <- 0.05 #! as.numeric
  # DESeq2 VSR transformation method
-#typeTrans <- "rlog"
+typeTrans <- "rlog"
 
 # #################################################################################
 

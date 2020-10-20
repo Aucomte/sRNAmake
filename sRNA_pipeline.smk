@@ -9,11 +9,6 @@ from os import listdir
 import getpass
 
 ###############################################################################
-# NOTE pas de caractere speciaux entre 2 wildcards
-
-## ??????????? I DO NOT KNOW HOW TO DO THAT BUT WE WOULD NEED TO USE THE PATHS
-## ??????????? PROVIDED IN THE SNAKEMAKE COMMAND LINE
-
 # --- Importing Configuration Files --- #
 
 #pprint.pprint(workflow.__dict__)
@@ -62,12 +57,12 @@ check_config_file()
 
 # parse config file :
 fastq_dir = Path(config["DATA"]["directories"]["fastq_dir"]).resolve().as_posix()
-references_dir =  Path(config["DATA"]["directories"]["references_dir"]).resolve().as_posix()
 out_dir = Path(config["DATA"]["directories"]["out_dir"]).resolve().as_posix()
 log_dir = Path(config["DATA"]["directories"]["out_dir"]+"/LOGS/").resolve().as_posix()
+annotation_path = Path(config["DATA"]["files"]["annotation"]).resolve().as_posix()
+reference_path = Path(config["DATA"]["files"]["reference"]).resolve().as_posix()
 miRNA_path = Path(config["DATA"]["files"]["miRNA_gff"]).resolve().as_posix()
 samplefile = Path(config["DATA"]["files"]["sample_info"]).resolve().as_posix()
-suffix_file = config["DATA"]["fasta_suffix"]
 
 # to lunch separator
 sep="#"
@@ -106,10 +101,6 @@ def final_return(wildcards):
     return dico_final
 
 #*###############################################################################
-
-## ??????????  I AM NOT SURE WE NEED THAT? BECAUSE OF THIS THE ANNOTATION FILES (WHICH MUST BE GTF, WHY?) NEED
-## ??????????  ALSO TO HAVE THE SAME NAME PREFIX, IS IT REALLY DESIRABLE?
-REFERENCES, = glob_wildcards(f"{references_dir}/{{references}}.{suffix_file}", followlinks=True)
 
 def unique(list1):
     # intilize a null list
@@ -185,7 +176,7 @@ rule final:
         unpack(final_return)
 
 
-# -------------  0 QC:
+# ------------- ----------------------------------------- 1 QC:
 
 rule run_Fastqc:
     """
@@ -284,43 +275,6 @@ rule generate_fastqtrimmed_info:
     script:
         "script/write_fastqtrimmed_info.py"
 
-
-# -------------  1 preparing data:
-
-rule cat_fasta :
-    """
-        cat all fasta in references dir
-    """
-    threads: get_threads('cat_fasta', 1)
-    input:
-        reference = expand(f"{references_dir}/{{references}}.{suffix_file}", references = REFERENCES)
-    output:
-        cat_ref = f"{out_dir}/1_cat_ref/all_ref.{suffix_file}"
-    log:
-         error = f"{log_dir}/cat_ref/all_ref.e",
-         output = f"{log_dir}/cat_ref/all_ref.o"
-    shell:
-         """
-            cat {input.reference} > {output.cat_ref}
-         """
-
-#rule cat_gtf :
-#    """
-#        cat all gtf in annotation dir
-#    """
-#    threads: get_threads('cat_gtf', 1)
-#    input:
-#        gtf = expand(f"{config['DATA']['directories']['annotation']}{{references}}.gtf", references = REFERENCES)
-#    output:
-#        cat_gtf = f"{out_dir}/1_cat_gtf/all_gtf.gtf"
-#    log:
-#        error = f"{log_dir}/cat_gtf/all_gtf.e",
-#        output = f"{log_dir}/cat_gtf/all_gtf.o"
-#    shell:
-#         """
-#            cat {input.gtf} > {output.cat_gtf}
-#         """
-
 # --------------------- 2 MAPPING
 
 rule bwa_index:
@@ -329,12 +283,12 @@ rule bwa_index:
     """
     threads: get_threads('bwa_index', 1)
     input:
-            reference = f"{out_dir}/1_cat_ref/all_ref.{suffix_file}",
+            reference = reference_path,
     output:
-            sa_file = f"{out_dir}/1_cat_ref/all_ref.{suffix_file}.sa"
+            sa_file = f"{reference_path}.sa"
     log:
-            error = f"{log_dir}/bwa_Index/all_ref.e",
-            output = f"{log_dir}/bwa_Index/all_ref.o"
+            error = f"{log_dir}/bwa_Index/{reference_path}.e",
+            output = f"{log_dir}/bwa_Index/{reference_path}.o"
     message:
             f"""
             {sep*108}
@@ -358,11 +312,6 @@ rule bwa_index:
             """
 
 ###########
-
-## THIS USED TO BE HOOKED TO THE INITIAL FASTQs NOT THE FASTP ONES
-## DELIBERATE?
-## SHOULD BE ABLE TO SPECIFY OPT ARGS TO bwa aln
-## {output.bam_file} SHOULD BE TEMP
 
 rule run_mapping:
     """
@@ -630,8 +579,8 @@ rule diff_exp_analysis:
     threads: get_threads('diff_exp_analysis', 4)
     input:
         bam_files_info_file = rules.generate_bamfile_info.output.out_file,
-        genome_sequence_file = rules.cat_fasta.output.cat_ref, ## THIS MAY NOT BE NECESSARY ANY MORE!!!!!
-        genome_annotation_file = config["DATA"]["files"]["annotation"],
+        genome_sequence_file = rules.bwa_index.input.reference, ## THIS MAY NOT BE NECESSARY ANY MORE!!!!!
+        genome_annotation_file = annotation_path,
         sRNA_loci_annot_file = rules.shortStack_populateGFF.output.new_gff3
     params:
         out_dir = lambda w, output: os.path.dirname(output.html_output),
@@ -685,7 +634,6 @@ rule multiqc:
 
 # TODO :
         # scratch
-        # enlever cat_gtf pour l'instant --> un gtf faire a la main
         # fastqc --> pas la wildcard fastq mais le nom du chemin en sortie
         # Try to get ride of chromInfo in sRNA_DE_analysis.rmd using genome_sequence_file
         # trim parameter in config for the user to decide if trimming should be executed?
