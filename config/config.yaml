@@ -7,7 +7,6 @@
     'directories':
         'fastq_dir': "/data/projects/rymv_xantho_smallrna/srnamake/DATA2/fastq"       # samples dir with fastq
         'out_dir': "/data/projects/rymv_xantho_smallrna/srnamake/output1rpm"       # Out directory
-    'fasta_suffix': 'fa'                                # file termination
     'files':
         'reference': "/data/projects/rymv_xantho_smallrna/srnamake/DATA2/ref/RiceRYMV2.fasta"
         'annotation': "/data/projects/rymv_xantho_smallrna/srnamake/DATA2/annotation/RiceRYMV2.gtf"
@@ -15,7 +14,6 @@
         'sample_info': "/data/projects/rymv_xantho_smallrna/srnamake/DATA2/sample_info.txt"
         'de_comparisons_file': "/data/projects/rymv_xantho_smallrna/srnamake/DATA2/treatmentsComparisons.csv"
         'filter_gff': "/data/projects/rymv_xantho_smallrna/srnamake/DATA2/Oryza_sativa_genomic_refseq_IRGSP_seqlevels.gff3"
-#NASID: "NAS2"
 
 ################################
 # Params for tools:
