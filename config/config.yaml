@@ -9,7 +9,7 @@
         'out_dir': "/data/projects/rymv_xantho_smallrna/srnamake/output2rpm"       # Out directory
     'fasta_suffix': 'fa'                                # file termination
     'files':
-        'references': "/data/projects/rymv_xantho_smallrna/srnamake/DATA2/ref/RiceRYMV2.fasta"
+        'reference': "/data/projects/rymv_xantho_smallrna/srnamake/DATA2/ref/RiceRYMV2.fasta"
         'annotation': "/data/projects/rymv_xantho_smallrna/srnamake/DATA2/annotation/RiceRYMV2.gtf"
         'miRNA_gff' : '/data/projects/rymv_xantho_smallrna/srnamake/DATA2/annotation/miRBase_MSU7_MIR.gff3'
         'sample_info': "/data/projects/rymv_xantho_smallrna/srnamake/DATA2/sample_info.txt"
