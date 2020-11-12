@@ -1,10 +1,17 @@
 # sRNAmake
 
+[![PythonVersions](https://img.shields.io/badge/python-3.7%2B-blue)](https://www.python.org/downloads)
+[![SnakemakeVersions](https://img.shields.io/badge/snakemake-≥5.10.0-brightgreen.svg?style=flat)](https://snakemake.readthedocs.io)
+[![Singularity](https://img.shields.io/badge/singularity-≥3.3.0-7E4C74.svg)](https://sylabs.io/docs/)
+[![Miniconda3](https://img.shields.io/badge/Miniconda3-≥4.8.2-eb7134.svg)](https://sylabs.io/docs/)
+
 ## Table of contents
 1. [Introduction](#introduction)
 2. [Prepare inputs](#config)
 3. [Launch the pipeline](#launch)
 4. [The outputs](#outputs)
+4. [citation](#citation)
+4. [licence](#license)
 
 ## Introduction <a name="introduction"></a>:
 
@@ -182,5 +189,21 @@ slurm_log
 * 5_sRNA_loci_DE_analysis: results of the differential analysis
 * 6_MULTIQC : merging all the quality files, QC of fastq and QC of mapping.
 * LOGS: logs for all the tools used.
+
+<a name="citation"></a>
+## Citation
+
+@Authors:
+
+Sebastien Cunnac (IRD) and Aurore Comte (IRD) 
+
+#### Thanks
+
+The authors acknowledge the IRD i-Trop HPC (South Green Platform) at IRD Montpellier for providing HPC resources that have contributed to this work. https://bioinfo.ird.fr/ - http://www.southgreen.fr
+
+<a name="licence"></a>
+## License
+Licencied under CeCill-C (http://www.cecill.info/licences/Licence_CeCILL-C_V1-en.html) and GPLv3
+Intellectual property belongs to IRD and authors.
 
 
