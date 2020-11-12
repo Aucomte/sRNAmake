@@ -175,5 +175,12 @@ report
 slurm_log
 ```
 
+* 1_QC: contains quality checking of fastq before and after filtering with fastp.
+* 2_mapping_sRNA: raw bam of the alignments of each fastq on the reference
+* 3_merge_bam_sRNA : merging of all the bam in one, and bam merging by condition
+* 4_ShortStack: outputs of the Shortstack tool
+* 5_sRNA_loci_DE_analysis: results of the differential analysis
+* 6_MULTIQC : merging all the quality files, QC of fastq and QC of mapping.
+* LOGS: logs for all the tools used.
 
 
