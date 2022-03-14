@@ -46,14 +46,14 @@ def by_cond(cond, yes, no, cond_ext = '', no_ext = ''): # it's working but needs
 # check configfile:
 # existence of dir and validity of suffix
 
-def check_config_file():
-    if not os.path.exists(config["DATA"]["directories"]["fastq_dir"]):
-        logger.info("CONFIG FILE CHECKING FAIL : in the DATA section, fastq_dir directory does not exists")
-        raise ValueError("CONFIG FILE CHECKING FAIL : in the DATA section, fastq_dir directory does not exists")
-    if config['DATA']['fasta_suffix'] not in ["fasta", "fna", "fa", "fsa"]:
-        raise WorkflowError(f"\n\tERROR : {config['DATA']['fasta_suffix']} is not a good extention for fasta file (fasta, fna, fa, fsa).\nExiting...")
+#def check_config_file():
+#    if not os.path.exists(config["DATA"]["directories"]["fastq_dir"]):
+#        logger.info("CONFIG FILE CHECKING FAIL : in the DATA section, fastq_dir directory does not exists")
+#        raise ValueError("CONFIG FILE CHECKING FAIL : in the DATA section, fastq_dir directory does not exists")
+#    if config['DATA']['fasta_suffix'] not in ["fasta", "fna", "fa", "fsa"]:
+#        raise WorkflowError(f"\n\tERROR : {config['DATA']['fasta_suffix']} is not a good extention for fasta file (fasta, fna, fa, fsa).\nExiting...")
 
-check_config_file()
+#check_config_file()
 
 # parse config file :
 fastq_dir = Path(config["DATA"]["directories"]["fastq_dir"]).resolve().as_posix()
