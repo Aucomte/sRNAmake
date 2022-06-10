@@ -90,7 +90,7 @@ def get_threads(rule, default):
 #*###############################################################################
 def final_return(wildcards):
     dico_final = {
-                     "multiqc_fastqc" : expand(f"{out_dir}/6_MULTIQC/multiqc.html"),
+                     #"multiqc_fastqc" : expand(f"{out_dir}/6_MULTIQC/multiqc.html"),
                      "baminfo" : f"{out_dir}/2_mapping_sRNA/bamfile_info.txt",
                      "bam_merged_by_treatments" : expand(f"{out_dir}/3_merge_bam_sRNA/{{treatment}}_merge.bam",treatment=TREATMENT),
                      "ShortStack_gff" : expand(f"{out_dir}/4_ShortStack/ShortStack_All.gff3"),
@@ -190,8 +190,8 @@ rule run_Fastqc:
     log:
         error = f"{log_dir}/run_Fastqc/{{fastq}}.e",
         output = f"{log_dir}/run_Fastqc/{{fastq}}.o"
-    singularity:
-            config["SINGULARITY"]["MAIN"]
+    #singularity:
+    #        config["SINGULARITY"]["MAIN"]
     conda:
             "envs/quality.yaml"
     shell:
@@ -203,77 +203,6 @@ rule run_Fastqc:
          ## RUN ONLY IF SOURCE AND DEST ARE DIFFERENT PATHS 
          [[ "$fastqcOutFilePath" == "$finalOutFilePath" ]] || mv "$fastqcOutFilePath" "$finalOutFilePath"
          """
-
-
-## FASTP DOES NOT ALLOW TO FINE TUNE ADAPTER TRIMMING = THIS IS A BIG LIMITATION
-## RELATIVE TO OTHER TOOLS eg: https://adapterremoval.readthedocs.io/en/latest/manpage.html
-
-
-rule run_fastp:
-    """
-        fastp on reads
-    """
-    threads: get_threads("run_fastp", 1)
-    input:
-        fastq = get_fastq
-    params:
-        options = config["PARAMS"]["FASTP"]["options"]
-    output:
-        output_html = f"{out_dir}/1_QC/{{fastq}}_fastp.html",
-        output_json = f"{out_dir}/1_QC/{{fastq}}_fastp.json",
-        fastq_trimmed =  f"{out_dir}/1_QC/{{fastq}}_trimmed.fastq"
-    log:
-        error = f"{log_dir}/run_fastp/{{fastq}}_fastp.e",
-        output = f"{log_dir}/run_fastp/{{fastq}}_fastp.o"
-    singularity:
-        config["SINGULARITY"]["MAIN"]
-    conda:
-        "envs/quality.yaml"
-    shell:
-        """
-            fastp --thread {threads} -i {input.fastq} -o {output.fastq_trimmed} -h {output.output_html} -j {output.output_json} {params.options}  1>>{log.output} 2>>{log.error}
-        """
-
-rule run_Fastqc_trimmed:
-    """
-        QC of fastq files on trimmed fastq files
-    """
-    threads: get_threads("run_Fastqc", 1)
-    input:
-        fastq = f"{out_dir}/1_QC/{{fastq}}_trimmed.fastq"
-    output:
-        html_fastqc = f"{out_dir}/1_QC/fastqc/{{fastq}}_trimmed_fastqc.html"
-    log:
-        error = f"{log_dir}/run_Fastqc/{{fastq}}.e",
-        output = f"{log_dir}/run_Fastqc/{{fastq}}.o"
-    singularity:
-            config["SINGULARITY"]["MAIN"]
-    conda:
-            "envs/quality.yaml"
-    shell:
-         """
-         fastqc -o {out_dir}/1_QC/fastqc -t {threads} {input.fastq}
-         infilename=$(basename {input.fastq})
-         fastqcOutFilePath="{out_dir}/1_QC/fastqc/${{infilename%%.*}}"_fastqc.html
-         finalOutFilePath="{output.html_fastqc}"
-         ## RUN ONLY IF SOURCE AND DEST ARE DIFFERENT PATHS 
-         [[ "$fastqcOutFilePath" == "$finalOutFilePath" ]] || mv "$fastqcOutFilePath" "$finalOutFilePath"
-         """
-
-rule generate_fastqtrimmed_info:
-    """
-        generate_fastqtrimmed_info
-    """
-    threads: get_threads('generate_fastqtrimmed_info', 1)
-    input:
-        fastp_files = expand(f"{out_dir}/1_QC/{{fastq}}_trimmed.fastq", fastq = SAMPLE_NAME),
-        samplefile = samplefile
-    params:
-        outdir = f"{out_dir}/1_QC/"
-    output:
-        out_file = f"{out_dir}/1_QC/fastq_trimmed_info.txt"
-    script:
-        "script/write_fastqtrimmed_info.py"
 
 # --------------------- 2 MAPPING
 
@@ -302,8 +231,8 @@ rule bwa_index:
                     - LOG error: {{log.error}}
                     - LOG output: {{log.output}}
             {sep*108}"""
-    singularity:
-            config["SINGULARITY"]["MAIN"]
+    #singularity:
+    #        config["SINGULARITY"]["MAIN"]
     conda:
             "envs/bam_treatment.yaml"
     shell:
@@ -321,8 +250,7 @@ rule run_mapping:
     input:
             reference = rules.bwa_index.input.reference,
             index = rules.bwa_index.output.sa_file,
-            fastq = rules.run_fastp.output.fastq_trimmed,
-            fastq_trimmed_info = rules.generate_fastqtrimmed_info.output.out_file
+            fastq = get_fastq,
     output:
             sai_file = f"{out_dir}/2_mapping_sRNA/{{fastq}}.sai",
             sam_file = f"{out_dir}/2_mapping_sRNA/{{fastq}}.sam",
@@ -349,15 +277,15 @@ rule run_mapping:
                     - LOG error: {{log.error}}
                     - LOG output: {{log.output}}
             {sep*108}"""
-    singularity:
-            config["SINGULARITY"]["MAIN"]
+    #singularity:
+    #        config["SINGULARITY"]["MAIN"]
     conda:
             "envs/bam_treatment.yaml"
     shell:
         """
             # Align reads to reference genome:
             bwa aln -t {threads} {params.options} {input.reference} {input.fastq} > {output.sai_file} 2>>{log.error}
-            bwa samse -n 5 {input.reference} {output.sai_file} {input.fastq} > {output.sam_file} 2>>{log.error}
+            bwa samse {input.reference} {output.sai_file} {input.fastq} > {output.sam_file} 2>>{log.error}
             samtools view -bSh -o {output.bam_file} {output.sam_file} 1>>{log.output} 2>>{log.error}
             samtools sort --threads {threads} -o {output.sorted_bam_file} {output.bam_file} 1>>{log.output} 2>>{log.error}
             samtools index {output.sorted_bam_file} 1>>{log.output} 2>>{log.error}
@@ -407,8 +335,8 @@ rule samtools_stats:
                     - LOG error: {{log.error}}
                     - LOG output: {{log.output}}
             {sep*108}"""
-    singularity:
-            config["SINGULARITY"]["MAIN"]
+    #singularity:
+    #        config["SINGULARITY"]["MAIN"]
     conda:
             "envs/bam_treatment.yaml"
     shell:
@@ -449,8 +377,8 @@ rule samtools_merge_treatment:
                     - LOG error: {{log.error}}
                     - LOG output: {{log.output}}
             {sep*108}"""
-    singularity:
-            config["SINGULARITY"]["MAIN"]
+    #singularity:
+    #        config["SINGULARITY"]["MAIN"]
     conda:
             "envs/bam_treatment.yaml"
     shell:
@@ -488,8 +416,8 @@ rule samtools_merge:
                     - LOG error: {{log.error}}
                     - LOG output: {{log.output}}
             {sep*108}"""
-    singularity:
-            config["SINGULARITY"]["MAIN"]
+    #singularity:
+     #       config["SINGULARITY"]["MAIN"]
     conda:
             "envs/bam_treatment.yaml"
     shell:
@@ -524,8 +452,6 @@ rule ShortStack:
     log:
         error = f"{log_dir}/ShortStack/ShortStack.e",
         output = f"{log_dir}/ShortStack/ShortStack.o"
-    singularity:
-        config["SINGULARITY"]["MAIN"]
     conda:
         "envs/shortstack.yaml"
     shell:
@@ -546,8 +472,10 @@ rule shortStack_populateGFF:
         outDirSStack = rules.ShortStack.params.outdir
     output:
         new_gff3 = f"{out_dir}/4_ShortStack/ShortStack_All_miRNA.gff3"
-    singularity:
-        config["SINGULARITY"]["MAIN"]
+    #singularity:
+    #    config["SINGULARITY"]["MAIN"]
+    conda:
+        "envs/shortstack.yaml"
     shell:
        """
        Rscript script/shortStack_populateGFF.R --sstackDir={params.outDirSStack} --miRnaGffFile={input.miRNA_gff} --outputGffFile={output.new_gff3}
@@ -601,13 +529,14 @@ rule diff_exp_analysis:
         typeTrans = config["PARAMS"]["DE_ANALYSIS"]["typeTrans"]
     output:
         html_output = f"{out_dir}/5_sRNA_loci_DE_analysis/sRNA_DE_analysis.html"
-    log:
-        error = f"{log_dir}/diff_exp_analysis.e",
-        output = f"{log_dir}/diff_exp_analysis.o"
     singularity:
         config["SINGULARITY"]["MAIN"]
-    script:
-        "script/sRNA_DE_analysis.Rmd"
+    #script:
+    #    "script/sRNA_DE_analysis.Rmd"
+    shell:
+       # "Rscript -e 'library(rmarkdown); rmarkdown::render(\"script/sRNA_DE_analysis.Rmd\",\"{output.html_output}\")'"
+        "Rscript -e \"rmarkdown::render('script/sRNA_DE_analysis.Rmd')\""
+
 
 
 rule multiqc:
@@ -616,9 +545,7 @@ rule multiqc:
     """
     threads: get_threads("multiqc", 1)
     input:
-        expand(f"{out_dir}/1_QC/{{fastq}}_fastp.json", fastq = SAMPLE_NAME),
         expand(f"{out_dir}/1_QC/fastqc/{{fastq}}_raw_fastqc.html", fastq = SAMPLE_NAME),
-        expand(f"{out_dir}/1_QC/fastqc/{{fastq}}_trimmed_fastqc.html", fastq = SAMPLE_NAME),
         expand(f"{out_dir}/2_mapping_sRNA/{{fastq}}.sorted.bam.bamStats.txt", fastq = SAMPLE_NAME),
         expand(f"{out_dir}/2_mapping_sRNA/{{fastq}}.sorted.bam.idxstats.log", fastq = SAMPLE_NAME),
         expand(f"{out_dir}/2_mapping_sRNA/{{fastq}}.sorted.bam.flagstat.log", fastq = SAMPLE_NAME),
@@ -626,10 +553,10 @@ rule multiqc:
         f"{out_dir}/6_MULTIQC/multiqc.html"
     log:
         f"{log_dir}/multiqc/multiqc.log"
-    singularity:
-        config["SINGULARITY"]["MAIN"]
+    #singularity:
+    #    config["SINGULARITY"]["MAIN"]
     wrapper:
-        "0.65.0/bio/multiqc"
+        "v1.2.1/bio/multiqc"
 
 
 # TODO :
